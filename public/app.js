@@ -511,7 +511,6 @@ function startOver() {
 }
 $('#start-over').addEventListener('click', startOver);
 $('#nav-start-over').addEventListener('click', startOver);
-$('#replay').addEventListener('click', () => startReveal(reveal.movies));
 $('#shuffle').addEventListener('click', () => getRecommendations({ fresh: false }));
 
 /* ---------- Browse view ---------- */
@@ -622,6 +621,15 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
     Promise.all([loadConfig(), loadGenres()]).then(() => loadMovies());
   }
 }));
+
+// The logo goes home: the mood tab, first screen, nothing selected (no page reload needed).
+$('#home-link').addEventListener('click', (e) => {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let "open in new tab" work
+  e.preventDefault();
+  if ($('#trailer-dialog').open) closeTrailer();
+  $('.tab[data-view="mood"]').click();
+  startOver();
+});
 
 updateFavCount();
 loadEmotions().catch((err) => setStatus(err.message, true));
