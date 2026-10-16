@@ -224,8 +224,8 @@ function preload(url, timeout = 2500) {
 async function getRecommendations({ fresh }) {
   const requestId = ++latestRequest;
   if (fresh) state.seen = [];
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  const body = { mode, exclude: state.seen, emotions: state.selected };
+  // The server's default "lift" mode is used: movies that help change the chosen mood.
+  const body = { exclude: state.seen, emotions: state.selected };
   if (state.genres.length) body.genres = state.genres;
 
   setStatus('');
