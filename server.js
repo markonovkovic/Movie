@@ -182,7 +182,7 @@ if (require.main === module) {
   const key = (process.env.TMDB_API_KEY || '').trim();
   const tmdb = key ? createTmdbClient(key) : undefined;
   createServer({ tmdb }).listen(port, () => {
-    console.log(`MoodFlix running at http://localhost:${port}`);
+    console.log(`MoviePicker running at http://localhost:${port}`);
     console.log(tmdb
       ? 'Connected to TMDB: browsing and recommending from the full movie catalogue.'
       : 'Using the built-in movie catalogue. Set TMDB_API_KEY (or put it in .env) for all movies.');

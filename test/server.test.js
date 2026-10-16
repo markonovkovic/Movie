@@ -50,7 +50,7 @@ test('returns helpful errors', async () => {
 
 test('serves the frontend and blocks path traversal', async () => {
   const page = await fetch(`${base}/`);
-  assert.match(await page.text(), /MoodFlix/);
+  assert.match(await page.text(), /MoviePicker/);
   const traversal = await fetch(`${base}/..%2fserver.js`);
   assert.notStrictEqual(traversal.status, 200);
 });

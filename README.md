@@ -1,4 +1,4 @@
-# 🎬 MoodFlix
+# 🎬 MoviePicker
 
 Tell it how you feel and get **3 movies** to watch right now.
 

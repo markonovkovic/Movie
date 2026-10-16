@@ -1,5 +1,5 @@
 {
-  "name": "moodflix",
+  "name": "moviepicker",
   "version": "1.0.0",
   "description": "Tell it how you feel, get 3 movies to watch.",
   "main": "server.js",
