@@ -135,8 +135,10 @@ function renderChips(warning = '') {
   updateFindButton();
 }
 
+// "Find movies" only appears once there's something to search for.
 function updateFindButton() {
-  $('#find').disabled = !state.selected.length && !$('#feeling-text').value.trim();
+  $('#find').hidden = !state.selected.length && !$('#feeling-text').value.trim();
+  $('#find').disabled = false;
 }
 
 // The blurred poster backdrop shows only while movies are being revealed.
@@ -168,7 +170,7 @@ $('#emotion-chips').addEventListener('click', (e) => {
 
 $('#feeling-text').addEventListener('input', updateFindButton);
 $('#feeling-text').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !$('#find').disabled) find();
+  if (e.key === 'Enter' && !$('#find').hidden && !$('#find').disabled) find();
 });
 $('#find').addEventListener('click', () => find());
 
