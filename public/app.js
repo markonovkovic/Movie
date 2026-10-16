@@ -454,7 +454,18 @@ function backToPick() {
   showStep('pick');
 }
 $('#change-mood').addEventListener('click', backToPick);
-$('#change-mood-2').addEventListener('click', backToPick);
+
+// Back to the first screen with nothing selected, to choose a new mood and genre.
+function startOver() {
+  state.selected = [];
+  state.genres = [];
+  state.seen = [];
+  setStatus('');
+  renderChips();
+  renderGenreChips();
+  backToPick();
+}
+$('#start-over').addEventListener('click', startOver);
 $('#replay').addEventListener('click', () => startReveal(reveal.movies));
 $('#shuffle').addEventListener('click', () => getRecommendations({ fresh: false }));
 
