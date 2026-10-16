@@ -131,7 +131,12 @@ function renderChips(warning = '') {
     : `Tap up to ${MAX_EMOTIONS} emotions to mix them.`);
 }
 
+// Each search gets a number; results from an older search are ignored, so a
+// selection changed while results were loading isn't overwritten by them.
+let latestRequest = 0;
+
 async function getRecommendations({ fresh }) {
+  const requestId = ++latestRequest;
   if (fresh) state.seen = [];
   const mode = document.querySelector('input[name="mode"]:checked').value;
   const body = { mode, exclude: state.seen, emotions: state.selected };
@@ -145,14 +150,17 @@ async function getRecommendations({ fresh }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (requestId !== latestRequest) return;
     state.seen.push(...data.movies.map((m) => m.id));
-    // Moods found in the text become selected chips, so "show me 3 others" needn't re-analyse it.
-    const keys = data.emotions.map((e) => e.key);
-    if (keys.join() !== state.selected.join()) {
-      state.selected = keys;
-      renderChips();
+    // Moods found in typed text become selected chips, so "show me 3 others" needn't re-analyse it.
+    if (body.text) {
+      const keys = data.emotions.map((e) => e.key);
+      if (keys.join() !== state.selected.join()) {
+        state.selected = keys;
+        renderChips();
+      }
+      state.text = '';
     }
-    state.text = '';
 
     const via = data.detectedFrom === 'text' && data.matchedWords?.length
       ? ` (from “${data.matchedWords.join('”, “')}”)` : '';
@@ -164,9 +172,9 @@ async function getRecommendations({ fresh }) {
     $('#results').hidden = false;
     setStatus('');
   } catch (err) {
-    setStatus(err.message, true);
+    if (requestId === latestRequest) setStatus(err.message, true);
   } finally {
-    $('#shuffle').disabled = false;
+    if (requestId === latestRequest) $('#shuffle').disabled = false;
   }
 }
 
@@ -187,6 +195,8 @@ $('#emotion-chips').addEventListener('click', (e) => {
   renderChips();
   clearTimeout(chipTimer);
   if (!state.selected.length) {
+    latestRequest++; // drop any search still loading
+    $('#shuffle').disabled = false;
     $('#results').hidden = true;
     return setStatus('');
   }
