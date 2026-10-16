@@ -2,6 +2,7 @@
 
 const DEFAULT_COUNT = 3;
 const MIN_RATING = 6; // never recommend movies rated below this
+const NEWEST_CHOICES = 5; // the newest pick is random among this many best-fitting recent movies
 
 function shuffle(items, random) {
   const arr = items.slice();
@@ -10,6 +11,14 @@ function shuffle(items, random) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+// Random choice among the best few, limited to those fitting the most emotions.
+function randomTop(scored, random, n = NEWEST_CHOICES) {
+  if (!scored.length) return undefined;
+  const mostFits = Math.max(...scored.map((c) => c.fitCount));
+  const top = scored.filter((c) => c.fitCount === mostFits).slice(0, n);
+  return top[Math.floor(random() * top.length)];
 }
 
 const isGoodEnough = (m, minRating) => typeof m.rating === 'number' && m.rating >= minRating;
@@ -39,9 +48,9 @@ function score(movies, sets, random) {
  * more of the emotions rank higher, every emotion gets at least one fitting movie when
  * possible, and randomness keeps repeated requests fresh.
  *
- * One pick is reserved for a recent release, marked `isNewest: true`. It comes from
- * `newestPool` (e.g. movies released in the last year) when that has a fitting movie,
- * otherwise from the most recent fitting movies in `catalogue`.
+ * One pick is reserved for a recent release, marked `isNewest: true`: a random one of the
+ * best-fitting few in `newestPool` (e.g. movies released in the last year), otherwise
+ * from the most recent fitting movies in `catalogue`.
  */
 function pickMovies(catalogue, genreSets, {
   count = DEFAULT_COUNT, exclude = [], random = Math.random, minRating = MIN_RATING, newestPool = [],
@@ -56,11 +65,12 @@ function pickMovies(catalogue, genreSets, {
   const take = (c) => { picks.push(c.movie); pickedIds.add(c.movie.id); };
   const taken = (c) => pickedIds.has(c.movie.id);
 
-  // 1. The newest pick: best fit among recent releases.
-  let newest = score(usable(newestPool), sets, random).find((c) => !taken(c));
+  // 1. The newest pick: one of the best fits among recent releases, chosen at random
+  //    so the same film doesn't come up every time.
+  let newest = randomTop(score(usable(newestPool), sets, random), random);
   if (!newest && candidates.length) {
     const latestYear = Math.max(...candidates.map((c) => c.movie.year || 0));
-    newest = candidates.find((c) => (c.movie.year || 0) >= latestYear - 1);
+    newest = randomTop(candidates.filter((c) => (c.movie.year || 0) >= latestYear - 1), random);
   }
   if (newest && count > 0) take(newest);
   const newestId = newest && newest.movie.id;
