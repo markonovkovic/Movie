@@ -203,6 +203,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .nav-btn { min-width: 56px; }
 .nav-btn:disabled { opacity: .35; cursor: default; }
 #next { min-width: 150px; }
+.nav-start-over { white-space: nowrap; animation: pop-in .35s ease both; }
 .dots { display: flex; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--border); transition: width .3s, background .3s; }
 .dot.seen { background: color-mix(in srgb, var(--accent) 45%, var(--border)); }
@@ -307,7 +308,8 @@ dialog::backdrop { background: rgb(0 0 0 / .7); }
   .reveal-info { padding: 18px; }
   .rating-bar { flex-basis: 100px; }
   .reveal-nav { gap: 12px; }
-  #next { min-width: 120px; }
+  #next { min-width: 0; flex: 1; white-space: nowrap; }
+  .nav-start-over { padding: 12px 14px; }
   .grid.three .poster { aspect-ratio: 16 / 9; }
 }
 
