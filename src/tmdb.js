@@ -66,7 +66,7 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   // plus one recent release. `genreSets` has one genre list per emotion (may be empty).
   // `required` genres (typed by the user) limit the search to those genres; emotions then rank the results.
   async function recommendSource(genreSets, {
-    count, exclude = [], random = Math.random, now = new Date(), required = [], emotions = [], mode = 'lift',
+    count, exclude = [], hide = [], random = Math.random, now = new Date(), required = [], emotions = [], mode = 'lift',
   }) {
     const toIds = (genres) => [...new Set(genres.map((g) => GENRE_IDS[g]).filter(Boolean))];
     // TMDB has no Sport or Biography genre: an empty result lets the built-in list handle those.
@@ -148,7 +148,7 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
       return [...byId.values()];
     };
     return pickMovies(combine(moodFound, blended, found), genreSets, {
-      count, exclude, random, required, newestPool: combine(moodRecent, recent),
+      count, exclude, hide, random, required, newestPool: combine(moodRecent, recent),
     });
   }
 

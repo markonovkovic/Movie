@@ -62,16 +62,19 @@ function score(movies, sets, random, required = new Set()) {
  * from the most recent fitting movies in `catalogue`.
  */
 function pickMovies(catalogue, genreSets, {
-  count = DEFAULT_COUNT, exclude = [], random = Math.random, minRating = MIN_RATING, newestPool = [], required = [],
+  count = DEFAULT_COUNT, exclude = [], hide = [], random = Math.random, minRating = MIN_RATING, newestPool = [], required = [],
 } = {}) {
   const sets = (typeof genreSets[0] === 'string' ? [genreSets] : genreSets).map((s) => new Set(s));
   const requiredSet = new Set(required);
   const excluded = new Set(exclude.map(Number));
+  // `exclude`: shown before, skipped when possible. `hide`: never shown (seen it, favourites).
+  const hidden = new Set(hide.map(Number));
   // Requested genres are a hard rule. With several (e.g. "romcom"), movies having all of them
   // are used when there are enough; otherwise any one of them is enough.
   const hasAll = (m) => required.every((g) => m.genres.includes(g));
   const hasAny = (m) => !requiredSet.size || m.genres.some((g) => requiredSet.has(g));
-  const usable = (list, match = hasAny) => list.filter((m) => !excluded.has(m.id) && isGoodEnough(m, minRating) && match(m));
+  const usable = (list, match = hasAny) => list.filter((m) => !excluded.has(m.id) && !hidden.has(m.id)
+    && isGoodEnough(m, minRating) && match(m));
   const strict = required.length > 1 && usable(catalogue, hasAll).length >= count;
   const match = strict ? hasAll : hasAny;
 
@@ -121,7 +124,7 @@ function pickMovies(catalogue, genreSets, {
 
   // Not enough unseen movies left: top up with ones shown before rather than return fewer.
   if (picks.length < count && excluded.size) {
-    for (const m of pickMovies(catalogue, genreSets, { count, random, minRating, newestPool, required })) {
+    for (const m of pickMovies(catalogue, genreSets, { count, hide, random, minRating, newestPool, required })) {
       if (picks.length === count) break;
       if (!pickedIds.has(m.id)) { picks.push(m); pickedIds.add(m.id); }
     }

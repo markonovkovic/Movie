@@ -98,13 +98,16 @@ function joinLabels(labels) {
 
 /**
  * Main entry point.
- * @param {object} input  { emotions?: string[], emotion?, text?, mode?: 'lift'|'match', exclude?: number[], count? }
+ * @param {object} input  { emotions?: string[], emotion?, text?, mode?: 'lift'|'match', count?,
+ *                          exclude?: number[] (shown before: skipped when possible),
+ *                          hide?: number[] (seen it / favourites: never picked) }
  * @param {object} deps   { source?: async (genreSets, opts) => movies[], detectMood?: async (text) => {emotions, reason}, random? }
  */
 async function recommend(input = {}, deps = {}) {
   const mode = input.mode === 'match' ? 'match' : 'lift';
   const count = Math.min(Math.max(parseInt(input.count, 10) || DEFAULT_COUNT, 1), 10);
   const exclude = Array.isArray(input.exclude) ? input.exclude : [];
+  const hide = Array.isArray(input.hide) ? input.hide : [];
   const random = deps.random || Math.random;
 
   const requested = resolveGenres(input);
@@ -122,7 +125,7 @@ async function recommend(input = {}, deps = {}) {
   let source = 'local';
   if (deps.source) {
     try {
-      movies = await deps.source(genreSets, { count, exclude, random, required, emotions: resolved.keys, mode });
+      movies = await deps.source(genreSets, { count, exclude, hide, random, required, emotions: resolved.keys, mode });
       if (movies && movies.length) source = 'tmdb';
     } catch (err) {
       // Fall back to the built-in catalogue if the external API fails.
@@ -130,7 +133,7 @@ async function recommend(input = {}, deps = {}) {
     }
   }
   if (!movies || !movies.length) {
-    movies = pickMovies(MOVIES, genreSets, { count, exclude, random, required });
+    movies = pickMovies(MOVIES, genreSets, { count, exclude, hide, random, required });
   }
 
   const labels = chosen.map((e) => e.label.toLowerCase());

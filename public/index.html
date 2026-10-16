@@ -147,12 +147,34 @@
 
     <!-- Favourites view -->
     <section id="view-favourites" class="view" hidden>
-      <h1>Your favourites</h1>
-      <p class="sub">Saved on this device. Tap the <svg class="heart inline-heart" viewBox="0 0 24 24" role="img" aria-label="heart"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg> on any movie to add it here.</p>
-      <p id="favourites-empty" class="empty">No favourites yet. Find something you like and tap the heart.</p>
-      <div id="favourites-list" class="grid"></div>
+      <h1>Your lists</h1>
+      <div class="list-switch" role="tablist" aria-label="Lists">
+        <button class="list-tab active" data-list="favourites" role="tab" aria-selected="true">
+          <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          Favourites <span id="fav-list-count" class="list-count"></span>
+        </button>
+        <button class="list-tab" data-list="seen" role="tab" aria-selected="false">
+          <svg class="eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>
+          Seen <span id="seen-list-count" class="list-count"></span>
+        </button>
+      </div>
+
+      <div id="list-favourites">
+        <p class="sub">Saved on this device and never suggested again. Tap the heart on any movie to add it here.</p>
+        <p id="favourites-empty" class="empty">No favourites yet. Find something you like and tap the heart.</p>
+        <div id="favourites-list" class="grid"></div>
+      </div>
+
+      <div id="list-seen" hidden>
+        <p class="sub">Movies you've watched are never suggested again. Tap the eye on a movie to add or remove it.
+          <button id="clear-seen" class="link-inline" type="button" hidden>Clear list</button></p>
+        <p id="seen-empty" class="empty">Nothing here yet. Tap the eye on any movie you've already watched.</p>
+        <div id="seen-list" class="grid"></div>
+      </div>
     </section>
   </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <dialog id="trailer-dialog" aria-labelledby="trailer-title">
     <div class="dialog-head">
