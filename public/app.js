@@ -15,6 +15,32 @@ const GENRE_STYLE = {
   War: ['🎖️', '#455a64', '#a1887f'], Western: ['🤠', '#a1572b', '#ffcc80'],
 };
 
+/* ---------- Theme: Auto (follows the device), Light or Dark ---------- */
+
+const THEME_KEY = 'moviepicker:theme';
+const THEMES = ['auto', 'light', 'dark'];
+const THEME_ICONS = { auto: '🌗', light: '☀️', dark: '🌙' };
+const currentTheme = () => document.documentElement.dataset.theme || 'auto';
+
+function applyTheme(theme) {
+  if (theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  try {
+    if (theme === 'auto') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, theme);
+  } catch { /* not saved, still applied */ }
+  const label = theme[0].toUpperCase() + theme.slice(1);
+  const btn = $('#theme-toggle');
+  btn.querySelector('.theme-icon').textContent = THEME_ICONS[theme];
+  btn.querySelector('.theme-label').textContent = label;
+  btn.setAttribute('aria-label', `Theme: ${label}. Tap to change.`);
+  btn.title = `Theme: ${label}`;
+}
+$('#theme-toggle').addEventListener('click', () => {
+  applyTheme(THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length]);
+});
+applyTheme(currentTheme());
+
 const MAX_EMOTIONS = 3;
 const state = {
   selected: [],   // selected emotion keys, in the order they were picked
