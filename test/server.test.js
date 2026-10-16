@@ -54,3 +54,8 @@ test('serves the frontend and blocks path traversal', async () => {
   const traversal = await fetch(`${base}/..%2fserver.js`);
   assert.notStrictEqual(traversal.status, 200);
 });
+
+test('GET /healthz responds ok', async () => {
+  const res = await fetch(`${base}/healthz`);
+  assert.deepStrictEqual(await res.json(), { ok: true });
+});

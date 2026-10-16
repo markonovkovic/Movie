@@ -38,6 +38,17 @@ With TMDB, "All movies" lets you search any title, filter by genre, and sort by 
 Each title links to its TMDB page. If TMDB is unreachable, the app falls back to the built-in list automatically.
 Note: TMDB has no Sport or Biography genre, so those filters only exist in the built-in list.
 
+## Put it online (Render, free)
+
+1. Sign up at [render.com](https://render.com) with your GitHub account.
+2. **New → Web Service**, then pick this repository and branch.
+3. Language **Node**, build command `npm install`, start command `npm start`, instance type **Free**.
+4. Under **Environment Variables**, add `TMDB_API_KEY` with your key.
+5. Click **Deploy**. You get a URL like `https://moviepicker.onrender.com`.
+
+Alternatively, use **New → Blueprint**: `render.yaml` already describes the service, and Render asks for the key.
+On the free plan the app sleeps after ~15 minutes without visitors, so the first visit after that takes 30–60 seconds.
+
 ## API
 
 | Method | Endpoint | Description |

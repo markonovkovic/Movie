@@ -126,6 +126,9 @@ function createServer({ tmdb } = {}) {
       if (pathname === '/api/emotions' && req.method === 'GET') {
         return sendJson(res, 200, { emotions: listEmotions() });
       }
+      if (pathname === '/healthz') {
+        return sendJson(res, 200, { ok: true });
+      }
       if (pathname === '/api/config' && req.method === 'GET') {
         return sendJson(res, 200, { source: tmdb ? 'tmdb' : 'local' });
       }
