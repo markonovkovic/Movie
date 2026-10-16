@@ -1,7 +1,7 @@
 {
   "name": "moviepicker",
   "version": "1.0.0",
-  "description": "Tell it how you feel, get 3 movies to watch.",
+  "description": "MoviePicker: tell it how you feel, get 3 movies to watch.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,5 +10,8 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0"
+  }
 }

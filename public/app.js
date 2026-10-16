@@ -21,6 +21,47 @@ const state = {
   seen: [],       // ids already recommended this session, for "show me 3 others"
 };
 
+// Every movie rendered on the page, so card buttons can find their movie.
+const rendered = new Map();
+const movieKey = (m) => `${m.url ? 'tmdb' : 'local'}:${m.id}`;
+
+/* ---------- Favourites (saved in this browser) ---------- */
+
+const FAV_STORAGE = 'moviepicker:favourites';
+function readFavourites() {
+  try {
+    const list = JSON.parse(localStorage.getItem(FAV_STORAGE) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+let favourites = readFavourites();
+function saveFavourites() {
+  try { localStorage.setItem(FAV_STORAGE, JSON.stringify(favourites)); } catch { /* private mode etc. */ }
+  updateFavCount();
+}
+const isFavourite = (m) => favourites.some((f) => movieKey(f) === movieKey(m));
+function toggleFavourite(m) {
+  favourites = isFavourite(m) ? favourites.filter((f) => movieKey(f) !== movieKey(m)) : [m, ...favourites];
+  saveFavourites();
+  document.querySelectorAll(`.fav-btn[data-key="${CSS.escape(movieKey(m))}"]`).forEach((b) => setFavButton(b, isFavourite(m)));
+  if (!$('#view-favourites').hidden) renderFavourites();
+}
+function setFavButton(btn, on) {
+  btn.classList.toggle('on', on);
+  btn.textContent = on ? '♥' : '♡';
+  btn.setAttribute('aria-label', on ? 'Remove from favourites' : 'Add to favourites');
+  btn.setAttribute('aria-pressed', String(on));
+}
+function updateFavCount() {
+  $('#fav-count').textContent = favourites.length ? ` (${favourites.length})` : '';
+}
+function renderFavourites() {
+  $('#favourites-list').innerHTML = favourites.map(movieCard).join('');
+  $('#favourites-empty').hidden = favourites.length > 0;
+}
+
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -33,6 +74,9 @@ async function api(path, options) {
 }
 
 function movieCard(m) {
+  rendered.set(movieKey(m), m);
+  const key = escapeHtml(movieKey(m));
+  const fav = isFavourite(m);
   const [emoji, c1, c2] = GENRE_STYLE[m.genres[0]] || ['🎬', '#555', '#999'];
   const poster = m.poster
     ? `<div class="poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
@@ -48,6 +92,11 @@ function movieCard(m) {
         <div class="meta">${meta.map((x) => `<span>${x}</span>`).join('')}</div>
         ${m.description ? `<p class="desc">${escapeHtml(m.description)}</p>` : ''}
         <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
+        <div class="actions">
+          <button class="trailer-btn" type="button" data-key="${key}">▶ Trailer</button>
+          <button class="fav-btn${fav ? ' on' : ''}" type="button" data-key="${key}"
+                  aria-pressed="${fav}" aria-label="${fav ? 'Remove from favourites' : 'Add to favourites'}">${fav ? '♥' : '♡'}</button>
+        </div>
       </div>
     </article>`;
 }
@@ -90,7 +139,8 @@ async function getRecommendations({ fresh }) {
     const via = data.detectedFrom === 'text' && data.matchedWords?.length
       ? ` (from “${data.matchedWords.join('”, “')}”)` : '';
     $('#results-title').textContent = `${data.emotion.emoji} Feeling ${data.emotion.label.toLowerCase()}${via}`;
-    $('#results-message').textContent = `${data.message} Genres: ${data.genres.join(', ')}.`;
+    const reason = data.detectedFrom === 'ai' && data.reason ? `✨ ${data.reason} ` : '';
+    $('#results-message').textContent = `${reason}${data.message} Genres: ${data.genres.join(', ')}.`;
     $('#recommendations').innerHTML = data.movies.map(movieCard).join('');
     $('#results').hidden = false;
     setStatus('');
@@ -173,6 +223,46 @@ $('#genre').addEventListener('change', () => loadMovies());
 $('#sort').addEventListener('change', () => loadMovies());
 $('#load-more').addEventListener('click', () => loadMovies({ append: true }));
 
+/* ---------- Trailers ---------- */
+
+const dialog = $('#trailer-dialog');
+async function openTrailer(m, btn) {
+  btn.disabled = true;
+  const params = new URLSearchParams({ title: m.title, year: m.year || '' });
+  if (m.url) params.set('id', m.id);
+  try {
+    const t = await api(`/api/trailer?${params}`);
+    if (!t.youtubeKey) {
+      window.open(t.searchUrl, '_blank', 'noopener');
+      return;
+    }
+    $('#trailer-title').textContent = `${m.title}${m.year ? ` (${m.year})` : ''}`;
+    $('#trailer-frame').src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(t.youtubeKey)}?autoplay=1&rel=0`;
+    $('#trailer-youtube').href = t.searchUrl;
+    dialog.showModal();
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+function closeTrailer() {
+  $('#trailer-frame').src = 'about:blank'; // stops playback
+  if (dialog.open) dialog.close();
+}
+$('#trailer-close').addEventListener('click', closeTrailer);
+dialog.addEventListener('close', closeTrailer);
+dialog.addEventListener('click', (e) => { if (e.target === dialog) closeTrailer(); });
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.trailer-btn, .fav-btn');
+  if (!btn) return;
+  const m = rendered.get(btn.dataset.key);
+  if (!m) return;
+  if (btn.classList.contains('fav-btn')) toggleFavourite(m);
+  else openTrailer(m, btn);
+});
+
 /* ---------- Tabs ---------- */
 
 let browseLoaded = false;
@@ -183,10 +273,13 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   });
   $('#view-mood').hidden = tab.dataset.view !== 'mood';
   $('#view-browse').hidden = tab.dataset.view !== 'browse';
+  $('#view-favourites').hidden = tab.dataset.view !== 'favourites';
+  if (tab.dataset.view === 'favourites') renderFavourites();
   if (tab.dataset.view === 'browse' && !browseLoaded) {
     browseLoaded = true;
     Promise.all([loadConfig(), loadGenres()]).then(() => loadMovies());
   }
 }));
 
+updateFavCount();
 loadEmotions().catch((err) => setStatus(err.message, true));

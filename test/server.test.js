@@ -59,3 +59,9 @@ test('GET /healthz responds ok', async () => {
   const res = await fetch(`${base}/healthz`);
   assert.deepStrictEqual(await res.json(), { ok: true });
 });
+
+test('GET /api/trailer without TMDB returns a YouTube search link', async () => {
+  const data = await (await fetch(`${base}/api/trailer?title=Up&year=2009`)).json();
+  assert.strictEqual(data.youtubeKey, null);
+  assert.strictEqual(data.searchUrl, 'https://www.youtube.com/results?search_query=Up%202009%20trailer');
+});

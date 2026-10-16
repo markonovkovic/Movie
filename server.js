@@ -8,6 +8,7 @@ const { MOVIES, GENRES } = require('./src/movies');
 const { listEmotions, detectEmotion } = require('./src/emotions');
 const { recommend, RecommendationError } = require('./src/recommender');
 const { createTmdbClient } = require('./src/tmdb');
+const { createAiMoodDetector } = require('./src/ai-mood');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MIME = {
@@ -107,7 +108,7 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-function createServer({ tmdb } = {}) {
+function createServer({ tmdb, detectMood } = {}) {
   const source = tmdb ? tmdb.recommendSource : undefined;
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -130,7 +131,7 @@ function createServer({ tmdb } = {}) {
         return sendJson(res, 200, { ok: true });
       }
       if (pathname === '/api/config' && req.method === 'GET') {
-        return sendJson(res, 200, { source: tmdb ? 'tmdb' : 'local' });
+        return sendJson(res, 200, { source: tmdb ? 'tmdb' : 'local', aiMood: Boolean(detectMood) });
       }
       if (pathname === '/api/genres' && req.method === 'GET') {
         return sendJson(res, 200, { genres: tmdb ? tmdb.genres : GENRES });
@@ -150,6 +151,20 @@ function createServer({ tmdb } = {}) {
         const movie = MOVIES.find((m) => m.id === Number(movieMatch[1]));
         return movie ? sendJson(res, 200, movie) : sendJson(res, 404, { error: 'Movie not found.' });
       }
+      if (pathname === '/api/trailer' && req.method === 'GET') {
+        const title = searchParams.get('title') || '';
+        const year = searchParams.get('year') || '';
+        const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${title} ${year} trailer`.trim())}`;
+        let trailer = null;
+        if (tmdb) {
+          try {
+            trailer = await tmdb.getTrailer({ id: searchParams.get('id'), title, year });
+          } catch (err) {
+            console.warn(`[trailer] TMDB failed: ${err.message}`);
+          }
+        }
+        return sendJson(res, 200, trailer ? { ...trailer, searchUrl } : { youtubeKey: null, searchUrl });
+      }
       if (pathname === '/api/detect' && req.method === 'POST') {
         const { text } = await readJson(req);
         return sendJson(res, 200, detectEmotion(text || ''));
@@ -163,7 +178,7 @@ function createServer({ tmdb } = {}) {
             mode: searchParams.get('mode') || undefined,
             exclude: (searchParams.get('exclude') || '').split(',').filter(Boolean),
           };
-        return sendJson(res, 200, await recommend(input, { source }));
+        return sendJson(res, 200, await recommend(input, { source, detectMood }));
       }
       if (pathname.startsWith('/api/')) {
         return sendJson(res, 404, { error: 'Not found.' });
@@ -184,11 +199,17 @@ if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
   const key = (process.env.TMDB_API_KEY || '').trim();
   const tmdb = key ? createTmdbClient(key) : undefined;
-  createServer({ tmdb }).listen(port, () => {
+  const detectMood = process.env.ANTHROPIC_API_KEY
+    ? createAiMoodDetector({ apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.ANTHROPIC_MODEL || undefined })
+    : undefined;
+  createServer({ tmdb, detectMood }).listen(port, () => {
     console.log(`MoviePicker running at http://localhost:${port}`);
     console.log(tmdb
       ? 'Connected to TMDB: browsing and recommending from the full movie catalogue.'
       : 'Using the built-in movie catalogue. Set TMDB_API_KEY (or put it in .env) for all movies.');
+    console.log(detectMood
+      ? 'AI mood detection is on (Claude).'
+      : 'Mood detection uses keywords. Set ANTHROPIC_API_KEY for AI mood detection.');
   });
 }
 

@@ -6,13 +6,18 @@ Tell it how you feel and get **3 movies** to watch right now.
   ("stressed after a long day at work", "not happy today"). The text is analysed for emotion keywords, with simple negation handling.
 - Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
 - Hit **🔀 Show me 3 others** for new picks without repeats.
+- **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
+- **♡ Favourites**: save movies to a watchlist (stored in your browser, on that device).
+- **AI mood detection** (optional): with an Anthropic API key, Claude understands any description
+  ("my boss yelled at me and I just want to hide under a blanket"), slang, emoji and other languages.
 - Browse **All movies**: search by title, director or year; filter by genre; sort by rating or year.
 
 ## Run it
 
-Requires Node.js 18+. There are no dependencies to install.
+Requires Node.js 18+.
 
 ```bash
+npm install
 npm start          # http://localhost:3000
 npm test
 ```
@@ -38,12 +43,25 @@ With TMDB, "All movies" lets you search any title, filter by genre, and sort by 
 Each title links to its TMDB page. If TMDB is unreachable, the app falls back to the built-in list automatically.
 Note: TMDB has no Sport or Biography genre, so those filters only exist in the built-in list.
 
+### AI mood detection (optional)
+
+Without configuration, typed feelings are matched against keyword lists in `src/emotions.js`.
+For much better understanding, add an [Anthropic API key](https://console.anthropic.com/settings/keys):
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...      # in .env or Render's Environment settings
+ANTHROPIC_MODEL=claude-opus-5-5   # optional, this is the default
+```
+
+Each typed mood is one small request to Claude (constrained to the app's list of emotions; well under a cent).
+If the call fails, the app falls back to keyword matching. Choosing an emotion button never calls the API.
+
 ## Put it online (Render, free)
 
 1. Sign up at [render.com](https://render.com) with your GitHub account.
 2. **New → Web Service**, then pick this repository and branch.
 3. Language **Node**, build command `npm install`, start command `npm start`, instance type **Free**.
-4. Under **Environment Variables**, add `TMDB_API_KEY` with your key.
+4. Under **Environment Variables**, add `TMDB_API_KEY` with your key (and optionally `ANTHROPIC_API_KEY`).
 5. Click **Deploy**. You get a URL like `https://moviepicker.onrender.com`.
 
 Alternatively, use **New → Blueprint**: `render.yaml` already describes the service, and Render asks for the key.
@@ -59,7 +77,8 @@ On the free plan the app sleeps after ~15 minutes without visitors, so the first
 | `GET` | `/api/movies?q=&genre=&sort=popularity\|rating\|year\|title&page=1` | List and search movies (TMDB: the whole catalogue, 20 per page). |
 | `GET` | `/api/movies/:id` | A single movie. |
 | `GET` | `/api/genres` | All genres. |
-| `GET` | `/api/config` | `{ "source": "tmdb" \| "local" }` |
+| `GET` | `/api/trailer?id=&title=&year=` | YouTube trailer key for a movie (TMDB id, or title + year), plus a YouTube search link. |
+| `GET` | `/api/config` | `{ "source": "tmdb" \| "local", "aiMood": true \| false }` |
 | `POST` | `/api/detect` | Body `{ "text": "..." }`: shows which emotion the text maps to. |
 
 Example:
@@ -88,7 +107,8 @@ server.js            HTTP server, REST API and static file serving
 src/movies.js        Built-in movie catalogue
 src/emotions.js      Emotions → genres mapping and free-text emotion detection
 src/recommender.js   Picks 3 movies (weighted random, genre variety, no repeats)
-src/tmdb.js          TMDB client (browse, search, recommend)
+src/tmdb.js          TMDB client (browse, search, recommend, trailers)
+src/ai-mood.js       Optional AI mood detection with Claude
 public/              Web frontend (HTML/CSS/JS, no build step)
 test/                node:test unit and API tests
 ```

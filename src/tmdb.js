@@ -112,7 +112,22 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
     return toMovie(await request(`/movie/${Number(id)}`));
   }
 
-  return { recommendSource, browse, getMovie, genres: GENRES };
+  // Best YouTube trailer for a TMDB movie id, or for a title/year (used by built-in movies).
+  async function getTrailer({ id, title, year }) {
+    let movieId = Number(id) || null;
+    if (!movieId && title) {
+      const found = await request('/search/movie', { query: title, year, include_adult: false });
+      movieId = found.results && found.results[0] ? found.results[0].id : null;
+    }
+    if (!movieId) return null;
+    const { results = [] } = await request(`/movie/${movieId}/videos`, { language: 'en-US' });
+    const youtube = results.filter((v) => v.site === 'YouTube' && v.key);
+    const score = (v) => (v.type === 'Trailer' ? 4 : v.type === 'Teaser' ? 2 : 0) + (v.official ? 1 : 0);
+    const best = youtube.sort((a, b) => score(b) - score(a))[0];
+    return best ? { youtubeKey: best.key, name: best.name } : null;
+  }
+
+  return { recommendSource, browse, getMovie, getTrailer, genres: GENRES };
 }
 
 module.exports = { createTmdbClient, GENRE_IDS, toMovie };

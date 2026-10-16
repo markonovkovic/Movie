@@ -12,27 +12,37 @@ class RecommendationError extends Error {
   }
 }
 
+const NOT_UNDERSTOOD = "Sorry, I couldn't tell how you feel from that. Try describing your mood, e.g. \"stressed\", \"happy\" or \"lonely\", or pick an emotion.";
+
 /**
  * Works out which emotion to use from either an explicit key or free text.
- * An explicit, valid emotion key always wins over text.
+ * An explicit, valid emotion key always wins over text. Free text goes to the
+ * AI detector when one is configured, with keyword matching as the fallback.
  */
-function resolveEmotion({ emotion, text } = {}) {
+async function resolveEmotion({ emotion, text } = {}, { detectMood } = {}) {
   if (emotion) {
     const key = String(emotion).toLowerCase();
     if (!EMOTIONS[key]) throw new RecommendationError(`Unknown emotion "${emotion}".`);
     return { key, detectedFrom: 'selection' };
   }
-  if (text && String(text).trim()) {
-    const result = detectEmotion(text);
-    if (!result.emotion) {
-      throw new RecommendationError(
-        "Sorry, I couldn't tell how you feel from that. Try words like \"stressed\", \"happy\" or \"lonely\", or pick an emotion.",
-        422,
-      );
-    }
-    return { key: result.emotion, detectedFrom: 'text', matched: result.matched };
+  if (!text || !String(text).trim()) {
+    throw new RecommendationError('Provide an "emotion" or some "text" describing how you feel.');
   }
-  throw new RecommendationError('Provide an "emotion" or some "text" describing how you feel.');
+
+  if (detectMood) {
+    try {
+      const ai = await detectMood(text);
+      if (!ai.emotion) throw new RecommendationError(NOT_UNDERSTOOD, 422);
+      return { key: ai.emotion, detectedFrom: 'ai', reason: ai.reason };
+    } catch (err) {
+      if (err instanceof RecommendationError) throw err;
+      console.warn(`[recommend] AI mood detection failed, using keywords: ${err.message}`);
+    }
+  }
+
+  const result = detectEmotion(text);
+  if (!result.emotion) throw new RecommendationError(NOT_UNDERSTOOD, 422);
+  return { key: result.emotion, detectedFrom: 'text', matched: result.matched };
 }
 
 function shuffle(items, random) {
@@ -92,7 +102,7 @@ function pickMovies(catalogue, genres, { count = DEFAULT_COUNT, exclude = [], ra
 /**
  * Main entry point.
  * @param {object} input  { emotion?, text?, mode?: 'lift'|'match', exclude?: number[], count? }
- * @param {object} deps   { source?: async (genres, opts) => movies[], random? }
+ * @param {object} deps   { source?: async (genres, opts) => movies[], detectMood?: async (text) => {emotion, reason}, random? }
  */
 async function recommend(input = {}, deps = {}) {
   const mode = input.mode === 'match' ? 'match' : 'lift';
@@ -100,7 +110,7 @@ async function recommend(input = {}, deps = {}) {
   const exclude = Array.isArray(input.exclude) ? input.exclude : [];
   const random = deps.random || Math.random;
 
-  const resolved = resolveEmotion(input);
+  const resolved = await resolveEmotion(input, deps);
   const emotion = EMOTIONS[resolved.key];
   const genres = emotion[mode];
 
@@ -123,6 +133,7 @@ async function recommend(input = {}, deps = {}) {
     emotion: { key: resolved.key, label: emotion.label, emoji: emotion.emoji },
     detectedFrom: resolved.detectedFrom,
     matchedWords: resolved.matched ? resolved.matched.map((m) => m.word) : undefined,
+    reason: resolved.reason,
     mode,
     genres,
     message: mode === 'match' ? `Movies that match feeling ${emotion.label.toLowerCase()}.` : emotion.message,

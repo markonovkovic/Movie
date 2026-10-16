@@ -16,9 +16,17 @@ const SAMPLE = [
 function fakeFetch(calls, { status = 200 } = {}) {
   return async (url, options) => {
     calls.push({ url: new URL(url), options });
-    const body = new URL(url).pathname.startsWith('/3/movie/')
-      ? { ...SAMPLE[0], genres: [{ id: 18, name: 'Drama' }], genre_ids: undefined }
-      : { page: 1, results: SAMPLE, total_results: 12345, total_pages: 900 };
+    const { pathname } = new URL(url);
+    const body = pathname.endsWith('/videos')
+      ? { results: [
+        { site: 'YouTube', key: 'teaser1', type: 'Teaser', official: true, name: 'Teaser' },
+        { site: 'Vimeo', key: 'v', type: 'Trailer', official: true, name: 'Vimeo' },
+        { site: 'YouTube', key: 'trailer1', type: 'Trailer', official: true, name: 'Official Trailer' },
+        { site: 'YouTube', key: 'fan', type: 'Trailer', official: false, name: 'Fan trailer' },
+      ] }
+      : pathname.startsWith('/3/movie/')
+        ? { ...SAMPLE[0], genres: [{ id: 18, name: 'Drama' }], genre_ids: undefined }
+        : { page: 1, results: SAMPLE, total_results: 12345, total_pages: 900 };
     return { ok: status === 200, status, json: async () => body };
   };
 }
@@ -59,6 +67,19 @@ test('v4 read access tokens are sent as a Bearer header', async () => {
   assert.strictEqual(calls[0].url.searchParams.get('api_key'), null);
 });
 
+test('getTrailer picks the official YouTube trailer, by id or by title search', async () => {
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  assert.deepStrictEqual(await tmdb.getTrailer({ id: 550 }), { youtubeKey: 'trailer1', name: 'Official Trailer' });
+  assert.strictEqual(calls[0].url.pathname, '/3/movie/550/videos');
+
+  calls.length = 0;
+  await tmdb.getTrailer({ title: 'Fight Club', year: 1999 });
+  assert.strictEqual(calls[0].url.pathname, '/3/search/movie');
+  assert.strictEqual(calls[0].url.searchParams.get('year'), '1999');
+  assert.strictEqual(calls[1].url.pathname, `/3/movie/${SAMPLE[0].id}/videos`);
+});
+
 test('recommendSource returns count movies from the emotion genres, minus excluded', async () => {
   const calls = [];
   const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
@@ -78,7 +99,7 @@ test('server uses TMDB for movies, genres and config, and falls back when it fai
   const orig = console.warn;
   console.warn = () => {};
   try {
-    assert.deepStrictEqual(await (await fetch(`${base}/api/config`)).json(), { source: 'tmdb' });
+    assert.deepStrictEqual(await (await fetch(`${base}/api/config`)).json(), { source: 'tmdb', aiMood: false });
     const list = await (await fetch(`${base}/api/movies?page=2`)).json();
     assert.strictEqual(list.source, 'tmdb');
     assert.strictEqual(list.total, 12345);
@@ -86,6 +107,9 @@ test('server uses TMDB for movies, genres and config, and falls back when it fai
     assert.ok(genres.includes('Sci-Fi') && !genres.includes('Biography'));
     const rec = await (await fetch(`${base}/api/recommend?emotion=happy`)).json();
     assert.strictEqual(rec.source, 'tmdb');
+    const trailer = await (await fetch(`${base}/api/trailer?id=550&title=Fight%20Club&year=1999`)).json();
+    assert.strictEqual(trailer.youtubeKey, 'trailer1');
+    assert.match(trailer.searchUrl, /search_query=Fight%20Club%201999%20trailer/);
     const one = await (await fetch(`${base}/api/movies/550`)).json();
     assert.deepStrictEqual(one.genres, ['Drama']);
 

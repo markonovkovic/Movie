@@ -11,8 +11,9 @@
   <header class="top">
     <div class="brand">🎬 MoviePicker</div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-view="mood" role="tab" aria-selected="true">What should I watch?</button>
-      <button class="tab" data-view="browse" role="tab" aria-selected="false">All movies</button>
+      <button class="tab active" data-view="mood" role="tab" aria-selected="true"><span class="long">What should I watch?</span><span class="short">🎭 Mood</span></button>
+      <button class="tab" data-view="browse" role="tab" aria-selected="false"><span class="long">All movies</span><span class="short">🎬 All</span></button>
+      <button class="tab" data-view="favourites" role="tab" aria-selected="false">♥ <span class="long">Favourites</span><span id="fav-count"></span></button>
     </nav>
   </header>
 
@@ -66,7 +67,26 @@
       <div id="movie-list" class="grid"></div>
       <div class="more"><button id="load-more" class="secondary" hidden>Load more movies</button></div>
     </section>
+
+    <!-- Favourites view -->
+    <section id="view-favourites" class="view" hidden>
+      <h1>Your favourites</h1>
+      <p class="sub">Saved on this device. Tap ♡ on any movie to add it here.</p>
+      <p id="favourites-empty" class="empty">No favourites yet. Find something you like and tap ♡.</p>
+      <div id="favourites-list" class="grid"></div>
+    </section>
   </main>
+
+  <dialog id="trailer-dialog" aria-labelledby="trailer-title">
+    <div class="dialog-head">
+      <h2 id="trailer-title"></h2>
+      <button id="trailer-close" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="video">
+      <iframe id="trailer-frame" title="Trailer" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <a id="trailer-youtube" target="_blank" rel="noopener">Not the right video? Search on YouTube ↗</a>
+  </dialog>
 
   <script src="app.js"></script>
 </body>
