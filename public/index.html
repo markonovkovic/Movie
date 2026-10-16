@@ -88,6 +88,19 @@
           <p id="genre-hint" class="hint"></p>
         </section>
 
+        <section class="panel">
+          <div class="panel-head">
+            <span class="step-num" aria-hidden="true">3</span>
+            <h2 id="length-label" class="panel-title">How much time do you have?</h2>
+            <span class="panel-note">optional</span>
+          </div>
+          <div id="length-chips" class="chips" role="group" aria-labelledby="length-label">
+            <button class="chip length-opt" data-length="short" type="button" aria-pressed="false"><span class="emoji">⚡</span>Under 90 min</button>
+            <button class="chip length-opt" data-length="medium" type="button" aria-pressed="false"><span class="emoji">🍿</span>Under 2 hours</button>
+            <button class="chip length-opt" data-length="long" type="button" aria-pressed="false"><span class="emoji">🎬</span>Long (2h+)</button>
+          </div>
+        </section>
+
         <button id="find" class="primary find-btn" type="button" hidden>🎬 Find movies</button>
         <div id="status" class="status" role="status" aria-live="polite"></div>
       </div>
