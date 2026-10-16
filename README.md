@@ -4,12 +4,12 @@ Tell it how you feel and get **3 movies** to watch right now.
 
 - **Pick one or more emotions** (up to 3, e.g. Sad + Romantic). Movies that fit all of them rank highest,
   and each emotion is represented in the 3 picks.
-- **Pick a genre** (optional, up to 3; "Any genre" by default). Chosen genres are a firm rule: every pick is in
-  them, and with several (e.g. Romance + Comedy) movies having all of them come first. The emotions then decide
-  which ones fit your mood best, e.g. Happy + Horror favours horror-comedies. A genre on its own works too.
+- **Pick a genre** (optional, one at a time; none by default). The chosen genre is a firm rule: every pick is in
+  it. The emotions then decide which ones fit your mood best, e.g. Happy + Horror favours horror-comedies.
+  A genre on its own works too.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
-- Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
+- Picks aim to **lift the mood** you chose (e.g. sad → warm comedies). The API can also match it instead (`"mode": "match"`).
 - Tap **🎬 Find movies** and the picks are revealed **one by one**: a shuffling-cards animation, then each
   movie flips over with its poster as a blurred backdrop (sparkles for the 🆕 newest pick). Move with
   Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side.

@@ -16,10 +16,9 @@ const GENRE_STYLE = {
 };
 
 const MAX_EMOTIONS = 3;
-const MAX_GENRES = 3;
 const state = {
   selected: [],   // selected emotion keys, in the order they were picked
-  genres: [],     // selected genres; empty means any genre
+  genres: [],     // the selected genre (at most one); empty means any genre
   seen: [],       // ids already recommended for this mood, for "show me 3 others"
 };
 
@@ -169,43 +168,32 @@ $('#emotion-chips').addEventListener('click', (e) => {
   renderChips();
 });
 
-/* Genre options: "Any genre" or up to 3 specific genres. */
+/* Genre options: none selected by default, at most one at a time. */
 async function loadGenreChips() {
   const { genres } = await api('/api/genres');
-  $('#genre-chips').innerHTML = [
-    '<button class="chip genre-opt" data-genre="" type="button" aria-pressed="true"><span class="emoji">🎲</span>Any genre</button>',
-    ...genres.map((g) => `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`),
-  ].join('');
+  $('#genre-chips').innerHTML = genres.map((g) =>
+    `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`).join('');
   renderGenreChips();
 }
 
-function renderGenreChips(warning = '') {
+function renderGenreChips() {
   document.querySelectorAll('.genre-opt').forEach((c) => {
-    const g = c.dataset.genre;
-    const on = g ? state.genres.includes(g) : !state.genres.length;
+    const on = state.genres.includes(c.dataset.genre);
     c.classList.toggle('selected', on);
     c.setAttribute('aria-pressed', String(on));
   });
-  $('#genre-hint').classList.toggle('warn', Boolean(warning));
-  $('#genre-hint').textContent = warning || (state.genres.length
-    ? `All picks will be ${state.genres.join(' / ')}${state.genres.length > 1 ? ', with movies that have all of them first' : ''}.`
-    : '');
+  $('#genre-hint').textContent = state.genres.length
+    ? `All picks will be ${state.genres[0]}. Tap it again to clear.`
+    : 'Tap a genre to choose one.';
   updateFindButton();
 }
 
+// Tapping a genre selects it (replacing any other); tapping the selected one clears it.
 $('#genre-chips').addEventListener('click', (e) => {
   const chip = e.target.closest('.genre-opt');
   if (!chip) return;
   const g = chip.dataset.genre;
-  if (!g) {
-    state.genres = [];
-  } else if (state.genres.includes(g)) {
-    state.genres = state.genres.filter((x) => x !== g);
-  } else if (state.genres.length >= MAX_GENRES) {
-    return renderGenreChips(`You can pick up to ${MAX_GENRES} genres. Tap a selected one to remove it first.`);
-  } else {
-    state.genres = [...state.genres, g];
-  }
+  state.genres = state.genres.includes(g) ? [] : [g];
   setStatus('');
   renderGenreChips();
 });
@@ -236,8 +224,8 @@ function preload(url, timeout = 2500) {
 async function getRecommendations({ fresh }) {
   const requestId = ++latestRequest;
   if (fresh) state.seen = [];
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  const body = { mode, exclude: state.seen, emotions: state.selected };
+  // The server's default "lift" mode is used: movies that help change the chosen mood.
+  const body = { exclude: state.seen, emotions: state.selected };
   if (state.genres.length) body.genres = state.genres;
 
   setStatus('');

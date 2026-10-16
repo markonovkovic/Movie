@@ -24,19 +24,14 @@
       <!-- Step 1: choose -->
       <div id="step-pick" class="step">
         <h1>How are you feeling right now?</h1>
-        <p class="sub">Choose up to 3 emotions and, if you like, a genre, then tap <strong>Find movies</strong>.</p>
+        <p class="sub">Choose up to 3 emotions and/or a genre, then tap <strong>Find movies</strong>.</p>
 
         <div id="emotion-chips" class="chips" aria-label="Emotions" aria-describedby="chip-hint"></div>
         <p id="chip-hint" class="hint"></p>
 
-        <p id="genre-label" class="field-label">What kind of movie? <span class="optional">(optional, up to 3)</span></p>
+        <p id="genre-label" class="field-label">What kind of movie? <span class="optional">(optional, pick one)</span></p>
         <div id="genre-chips" class="chips genre-row" role="group" aria-labelledby="genre-label" aria-describedby="genre-hint"></div>
         <p id="genre-hint" class="hint"></p>
-
-        <div class="mode" role="radiogroup" aria-label="Recommendation mode">
-          <label class="mode-option"><input type="radio" name="mode" value="lift" checked><span>✨ Change my mood</span></label>
-          <label class="mode-option"><input type="radio" name="mode" value="match"><span>🎯 Match my mood</span></label>
-        </div>
 
         <button id="find" class="primary find-btn" type="button" hidden>🎬 Find movies</button>
         <div id="status" class="status" role="status" aria-live="polite"></div>
