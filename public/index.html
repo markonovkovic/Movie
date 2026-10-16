@@ -21,7 +21,7 @@
 <body>
   <div id="backdrop" class="backdrop" aria-hidden="true" hidden><div class="backdrop-layer"></div><div class="backdrop-layer"></div></div>
   <header class="top">
-    <div class="brand"><span class="logo" aria-hidden="true">🎬</span><span>Movie<span class="brand-accent">Picker</span></span></div>
+    <a id="home-link" class="brand" href="/" aria-label="MoviePicker home"><span class="logo" aria-hidden="true">🎬</span><span>Movie<span class="brand-accent">Picker</span></span></a>
     <nav class="tabs" role="tablist">
       <button class="tab active" data-view="mood" role="tab" aria-selected="true"><span class="long">What should I watch?</span><span class="short">🎭 Mood</span></button>
       <button class="tab" data-view="browse" role="tab" aria-selected="false"><span class="long">All movies</span><span class="short">🎬 All</span></button>
@@ -101,7 +101,6 @@
           <div class="summary-actions">
             <button id="start-over" class="primary" type="button">🏠 Start over</button>
             <button id="shuffle" class="secondary" type="button">🔀 Show me 3 others</button>
-            <button id="replay" class="secondary" type="button">↺ Reveal again</button>
           </div>
         </div>
       </div>
