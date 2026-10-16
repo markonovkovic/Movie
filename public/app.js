@@ -556,7 +556,10 @@ function revealCard(m, i, total) {
     ? `--poster:url('${encodeURI(m.poster)}');--backdrop:url('${encodeURI(m.backdrop || m.poster)}')`
     : `--poster:linear-gradient(135deg, ${c1}, ${c2});--backdrop:linear-gradient(135deg, ${c1}, ${c2})`;
   const meta = [m.year, formatRuntime(m.runtime), m.director].filter(Boolean).map(escapeHtml);
-  const kicker = [`Pick ${i + 1} of ${total}`, m.moodMatch ? '✨ Mood match' : ''].filter(Boolean).join(' · ');
+  // "🆕 Newest" sits in this line (a corner badge would cover it when the details fill the card).
+  // Phones leave out "Pick 1 of 3": the story bars above the card already show it.
+  const tags = [m.isNewest ? '🆕 Newest' : '', m.moodMatch ? '✨ Mood match' : ''].filter(Boolean);
+  const kicker = `<span class="k-pick">Pick ${i + 1} of ${total}${tags.length ? ' · ' : ''}</span>${escapeHtml(tags.join(' · '))}`;
   const rating = m.rating
     ? `<div class="rating-ring" style="--pct:${Math.min(m.rating * 10, 100)}%" role="img" aria-label="Rated ${escapeHtml(m.rating)} out of 10"><b>${escapeHtml(m.rating)}</b></div>`
     : '';
@@ -570,9 +573,8 @@ function revealCard(m, i, total) {
         </div>
         <div class="face front cinematic" style="${images}">
           ${m.poster ? '' : `<span class="cinematic-emoji" aria-hidden="true">${emoji}</span>`}
-          ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
           <div class="cinematic-info">
-            <p class="reveal-count">${escapeHtml(kicker)}</p>
+            <p class="reveal-count">${kicker}</p>
             <h3 class="reveal-name">${m.url
               ? `<a href="${encodeURI(m.url)}" target="_blank" rel="noopener">${escapeHtml(m.title)}</a>`
               : escapeHtml(m.title)}</h3>
@@ -582,8 +584,10 @@ function revealCard(m, i, total) {
             </div>
             <div class="tags">${m.genres.slice(0, 3).map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
             ${m.description ? `<p class="desc">${escapeHtml(m.description)}</p>` : ''}
+            ${m.description && m.description.length > 90
+              ? '<button class="desc-toggle" type="button" aria-expanded="false">More</button>' : ''}
             <div class="cinematic-actions">
-              <button class="trailer-btn cinematic-play" type="button" data-key="${key}">${PLAY_ICON}<span>Watch trailer</span></button>
+              <button class="trailer-btn cinematic-play" type="button" data-key="${key}" aria-label="Watch trailer">${PLAY_ICON}<span class="label-long">Watch trailer</span><span class="label-short">Trailer</span></button>
               ${seenButton(m)}
               ${favButton(m)}
             </div>
@@ -700,6 +704,16 @@ $('#prev').addEventListener('click', prev);
 // Tap the card: reveal it; once revealed, tap the left or right third to go back or forward.
 let justSwiped = false;
 $('#stage').addEventListener('click', (e) => {
+  // "More" / tapping the description opens the full text (it doesn't move to another card).
+  const toggle = e.target.closest('.desc-toggle') || (e.target.closest('.cinematic .desc') && e.target.closest('.cinematic-info')?.querySelector('.desc-toggle'));
+  if (toggle) {
+    const info = toggle.closest('.cinematic-info');
+    const open = !info.classList.contains('expanded');
+    info.classList.toggle('expanded', open);
+    toggle.textContent = open ? 'Less' : 'More';
+    toggle.setAttribute('aria-expanded', String(open));
+    return;
+  }
   if (justSwiped || e.target.closest('button, a')) return;
   const card = e.target.closest('.reveal-card');
   if (!card) return;
