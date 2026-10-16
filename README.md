@@ -5,6 +5,8 @@ Tell it how you feel and get **3 movies** to watch right now.
 - **Pick one or more emotions** (up to 3, e.g. Sad + Romantic) or **write it in your own words**
   ("stressed after a long day at work", "tired but kind of lonely"). The text is analysed for emotion keywords, with simple negation handling.
   With several emotions, movies that fit all of them rank highest, and each emotion is represented in the 3 picks.
+- Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
+  with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
 - Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.

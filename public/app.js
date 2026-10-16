@@ -85,6 +85,7 @@ function movieCard(m) {
   const meta = [m.year, m.rating ? `⭐ ${m.rating}` : null, m.director].filter(Boolean).map(escapeHtml);
   return `
     <article class="card">
+      ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
       ${poster}
       <div class="card-body">
         <h3 class="card-title">${m.url

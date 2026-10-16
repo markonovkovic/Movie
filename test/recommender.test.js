@@ -104,3 +104,44 @@ test('accepts emotions as a list or comma-separated string, and merges with text
   await assert.rejects(recommend({ emotions: ['happy', 'sad', 'bored', 'tired'] }), /at most 3/);
   await assert.rejects(recommend({ emotions: 'happy' + ',nope' }), /Unknown emotion "nope"/);
 });
+
+test('never recommends movies rated below 6', () => {
+  const catalogue = [
+    { id: 1, title: 'Low', genres: ['Comedy'], rating: 5.9, year: 2024 },
+    { id: 2, title: 'Unrated', genres: ['Comedy'], rating: null, year: 2024 },
+    { id: 3, title: 'OK', genres: ['Comedy'], rating: 6, year: 2001 },
+    { id: 4, title: 'Good', genres: ['Comedy'], rating: 8, year: 1999 },
+  ];
+  for (let i = 0; i < 20; i++) {
+    const picks = pickMovies(catalogue, ['Comedy']);
+    assert.deepStrictEqual(picks.map((m) => m.title).sort(), ['Good', 'OK']);
+  }
+});
+
+test('one pick is the newest fitting movie, marked isNewest', async () => {
+  const { MOVIES } = require('../src/movies');
+  for (const key of Object.keys(EMOTIONS)) {
+    const res = await recommend({ emotion: key });
+    const newest = res.movies.filter((m) => m.isNewest);
+    assert.strictEqual(newest.length, 1, `${key} has one newest pick`);
+    const wanted = new Set(EMOTIONS[key].lift);
+    const latest = Math.max(...MOVIES.filter((m) => m.genres.some((g) => wanted.has(g))).map((m) => m.year));
+    assert.ok(newest[0].year >= latest - 1, `${key}: ${newest[0].title} (${newest[0].year}) is recent, latest is ${latest}`);
+    assert.ok(res.movies.every((m) => m.rating >= 6));
+  }
+  // The shared catalogue is never modified.
+  assert.ok(MOVIES.every((m) => !('isNewest' in m)));
+});
+
+test('the newest pick comes from newestPool when it has a fitting movie', () => {
+  const catalogue = [1, 2, 3, 4].map((id) => ({ id, title: `Old ${id}`, genres: ['Drama'], rating: 8, year: 1990 + id }));
+  const pool = [
+    { id: 10, title: 'New but wrong genre', genres: ['Horror'], rating: 9, year: 2026 },
+    { id: 11, title: 'New but low rated', genres: ['Drama'], rating: 5, year: 2026 },
+    { id: 12, title: 'New and good', genres: ['Drama'], rating: 7, year: 2026 },
+  ];
+  const picks = pickMovies(catalogue, ['Drama'], { newestPool: pool });
+  assert.strictEqual(picks.length, 3);
+  assert.deepStrictEqual(picks.filter((m) => m.isNewest).map((m) => m.title), ['New and good']);
+  assert.strictEqual(picks[0].title, 'New and good');
+});

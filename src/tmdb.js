@@ -5,7 +5,7 @@
 // for both recommendations and the "All movies" list.
 // Accepts either a v3 "API Key" or a v4 "API Read Access Token".
 
-const { pickMovies } = require('./picker');
+const { pickMovies, MIN_RATING } = require('./picker');
 
 const API = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
@@ -61,21 +61,32 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
     return res.json();
   }
 
-  // Source for recommend(): popular, well-rated movies for one or more emotions.
-  // `genreSets` has one genre list per emotion; picks favour movies fitting several.
-  async function recommendSource(genreSets, { count, exclude = [], random = Math.random }) {
+  // Source for recommend(): popular movies rated MIN_RATING+ for one or more emotions,
+  // plus one recent release. `genreSets` has one genre list per emotion.
+  async function recommendSource(genreSets, { count, exclude = [], random = Math.random, now = new Date() }) {
     const ids = [...new Set(genreSets.flat().map((g) => GENRE_IDS[g]).filter(Boolean))];
     if (!ids.length) return [];
-    const data = await request('/discover/movie', {
+    const common = {
       with_genres: ids.join('|'), // "|" = any of these genres
       sort_by: 'popularity.desc',
-      'vote_average.gte': 6.5,
-      'vote_count.gte': 300,
+      'vote_average.gte': MIN_RATING,
       include_adult: false,
-      page: 1 + Math.floor(random() * 10),
+    };
+    const today = now.toISOString().slice(0, 10);
+    const yearAgo = new Date(now.getTime() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const [main, recent] = await Promise.all([
+      request('/discover/movie', { ...common, 'vote_count.gte': 300, page: 1 + Math.floor(random() * 10) }),
+      // New releases have fewer votes, so the floor is lower; it still keeps out barely-rated titles.
+      request('/discover/movie', {
+        ...common,
+        'vote_count.gte': 100,
+        'primary_release_date.gte': yearAgo,
+        'primary_release_date.lte': today,
+      }).catch(() => ({ results: [] })),
+    ]);
+    return pickMovies((main.results || []).map(toMovie), genreSets, {
+      count, exclude, random, newestPool: (recent.results || []).map(toMovie),
     });
-    const movies = (data.results || []).map(toMovie);
-    return pickMovies(movies, genreSets, { count, exclude, random });
   }
 
   // Browse/search the whole catalogue, 20 movies per page.
