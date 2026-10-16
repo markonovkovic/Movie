@@ -80,6 +80,23 @@ test('getTrailer picks the official YouTube trailer, by id or by title search', 
   assert.strictEqual(calls[1].url.pathname, `/3/movie/${SAMPLE[0].id}/videos`);
 });
 
+test('recommendSource searches mood keywords per emotion, within its genres, and avoids heavy themes', async () => {
+  const { moodKeywords } = require('../src/moods');
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  const movies = await tmdb.recommendSource([['Comedy', 'Animation', 'Family']], { count: 3, emotions: ['sad'] });
+  const moodCalls = calls.filter((c) => c.url.searchParams.get('with_keywords'));
+  assert.strictEqual(moodCalls.length, 2, 'one mood search for picks, one for recent releases');
+  assert.strictEqual(moodCalls[0].url.searchParams.get('with_keywords'), moodKeywords(['sad']).look.join('|'));
+  assert.strictEqual(moodCalls[0].url.searchParams.get('with_genres'), '35|16|10751', 'keywords refine the genres');
+  assert.ok(calls.every((c) => c.url.searchParams.get('without_keywords') === moodKeywords(['sad']).avoid.join(',')));
+  assert.ok(movies.some((m) => m.moodMatch));
+
+  calls.length = 0;
+  await tmdb.recommendSource([['Comedy']], { count: 3, emotions: ['sad'], mode: 'match' });
+  assert.ok(calls.every((c) => !c.url.searchParams.get('with_keywords') && !c.url.searchParams.get('without_keywords')), 'match mode: genres only');
+});
+
 test('recommendSource with typed genres searches for all of them first, then any', async () => {
   const calls = [];
   const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });

@@ -7,6 +7,9 @@ Tell it how you feel and get **3 movies** to watch right now.
 - **Pick a genre** (optional, one at a time; none by default). The chosen genre is a firm rule: every pick is in
   it. The emotions then decide which ones fit your mood best, e.g. Happy + Horror favours horror-comedies.
   A genre on its own works too.
+- **Mood keywords** (with TMDB): genres decide *what kind* of film it is, TMDB's tone and theme keywords decide
+  *how it feels*. Each emotion looks for keywords like *hopeful*, *feel-good*, *friendship* or *underdog* (within its
+  genres) and avoids heavy themes like *tragedy* or *grief* (`src/moods.js`). Falls back to genres when too few match.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
 - Picks aim to **lift the mood** you chose (e.g. sad → warm comedies). The API can also match it instead (`"mode": "match"`).
@@ -132,6 +135,7 @@ src/movies.js        Built-in movie catalogue
 src/emotions.js      Emotions → genres mapping and free-text emotion detection
 src/recommender.js   Resolves emotions (buttons, text, AI) and builds the recommendation
 src/genres.js        Understands genres in free text for the API ("scary" → Horror, "romcom" → Romance + Comedy)
+src/moods.js         Emotion → TMDB mood keywords (look for / avoid)
 src/picker.js        Picks 3 movies (weighted random, covers every emotion, genre variety, no repeats)
 src/tmdb.js          TMDB client (browse, search, recommend, trailers)
 src/ai-mood.js       Optional AI mood detection with Claude

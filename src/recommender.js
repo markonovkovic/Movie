@@ -122,7 +122,7 @@ async function recommend(input = {}, deps = {}) {
   let source = 'local';
   if (deps.source) {
     try {
-      movies = await deps.source(genreSets, { count, exclude, random, required });
+      movies = await deps.source(genreSets, { count, exclude, random, required, emotions: resolved.keys, mode });
       if (movies && movies.length) source = 'tmdb';
     } catch (err) {
       // Fall back to the built-in catalogue if the external API fails.

@@ -16,28 +16,33 @@ function shuffle(items, random) {
 // Random choice among the best few, limited to those fitting the most emotions.
 function randomTop(scored, random, n = NEWEST_CHOICES) {
   if (!scored.length) return undefined;
-  const mostFits = Math.max(...scored.map((c) => c.fitCount));
-  const top = scored.filter((c) => c.fitCount === mostFits).slice(0, n);
+  const mostFits = Math.max(...scored.map((c) => c.rank));
+  const top = scored.filter((c) => c.rank === mostFits).slice(0, n);
   return top[Math.floor(random() * top.length)];
 }
 
 const isGoodEnough = (m, minRating) => typeof m.rating === 'number' && m.rating >= minRating;
 
 // Scores movies against the emotions' genre sets and any required genres.
+// `m.moodFits` (optional) lists the emotions (by index) whose mood keywords the movie has,
+// e.g. "hopeful" or "feel-good" for sad; those count as fitting the emotion and rank higher.
 // Movies fitting no emotion are dropped, unless the user asked for specific genres.
 function score(movies, sets, random, required = new Set()) {
   const wanted = new Set(sets.flatMap((s) => [...s]));
   return movies
     .map((m) => {
-      const fits = sets.map((s) => m.genres.some((g) => s.has(g)));
+      const moodFits = m.moodFits || [];
+      const fits = sets.map((s, i) => m.genres.some((g) => s.has(g)) || moodFits.includes(i));
       const fitCount = fits.filter(Boolean).length;
       // Genre matches counted per emotion, so a romantic comedy beats a plain comedy for "romantic + scared".
       const fitScore = sets.reduce((sum, set) => sum + m.genres.filter((g) => set.has(g)).length, 0);
       // A movie matching more of the requested genres (e.g. both action and comedy) ranks higher.
       const requiredScore = m.genres.filter((g) => required.has(g)).length;
       // Weighted random: fitting more emotions, more genres and a higher rating all raise the odds.
-      const weight = fitCount * 3 + fitScore + requiredScore * 2 + m.rating / 2 + random() * 4;
-      return { movie: m, fits, fitCount, weight, primary: m.genres.find((g) => wanted.has(g)) };
+      const weight = fitCount * 3 + fitScore + requiredScore * 2 + moodFits.length * 5 + m.rating / 2 + random() * 4;
+      // For the newest pick: fitting more emotions first, then mood-keyword matches.
+      const rank = fitCount * 2 + (moodFits.length ? 1 : 0);
+      return { movie: m, fits, fitCount, rank, weight, primary: m.genres.find((g) => wanted.has(g)) };
     })
     .filter((c) => c.fitCount > 0 || required.size > 0)
     .sort((a, b) => b.weight - a.weight);
@@ -97,7 +102,10 @@ function pickMovies(catalogue, genreSets, {
   }
 
   // 3. Fill the rest from the strongest few, preferring a different main genre each time.
-  const pool = shuffle(candidates.slice(0, Math.max(count * 4, 12)), random);
+  //    Shuffled only among equally strong candidates, so mood matches stay ahead.
+  const top = candidates.slice(0, Math.max(count * 4, 12));
+  const pool = [...new Set(top.map((c) => c.rank))].sort((a, b) => b - a)
+    .flatMap((rank) => shuffle(top.filter((c) => c.rank === rank), random));
   const usedPrimary = new Set(picks.map((m) => m.genres.find((g) => sets.some((s) => s.has(g)))));
   for (const c of pool) {
     if (picks.length === count) break;
@@ -121,7 +129,10 @@ function pickMovies(catalogue, genreSets, {
 
   // Copies, so the shared catalogue objects are never modified. Top-ups may carry their
   // own isNewest flag from the nested call, so it is reset for everything but our pick.
-  return picks.map(({ isNewest, ...m }) => (m.id === newestId ? { ...m, isNewest: true } : m));
+  return picks.map(({ isNewest, moodFits, ...m }) => {
+    const out = moodFits && moodFits.length ? { ...m, moodMatch: true } : m;
+    return m.id === newestId ? { ...out, isNewest: true } : out;
+  });
 }
 
 module.exports = { pickMovies, shuffle, DEFAULT_COUNT, MIN_RATING };
