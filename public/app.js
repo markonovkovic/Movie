@@ -47,6 +47,28 @@ $('#theme-toggle').addEventListener('click', () => {
 });
 applyTheme(currentTheme());
 
+/* ---------- Tap ripple on buttons ---------- */
+
+const RIPPLE_TARGETS = 'button, .chip, .tab';
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest(RIPPLE_TARGETS);
+  if (!el || el.disabled || reduceMotion || e.button > 0) return;
+  if (!el.classList.contains('has-ripple')) {
+    // Keep sticky/absolute buttons as they are; only plain ones need positioning for the ripple.
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    el.classList.add('has-ripple');
+  }
+  const rect = el.getBoundingClientRect();
+  const size = Math.hypot(rect.width, rect.height) * 2;
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = `${size}px`;
+  ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+  ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+  el.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove());
+});
+
 /* ---------- Install as an app (PWA) ---------- */
 
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

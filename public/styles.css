@@ -73,7 +73,7 @@
 }
 
 /* ----- Base ----- */
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -115,7 +115,6 @@ a { color: var(--accent); }
   display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; letter-spacing: -.02em;
   color: var(--text); text-decoration: none; border-radius: 12px; transition: opacity .2s;
 }
-.brand:hover { opacity: .85; }
 .brand:active .logo { transform: scale(.92); }
 .logo { transition: transform .15s; }
 .logo {
@@ -128,7 +127,6 @@ a { color: var(--accent); }
   border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .9rem; font-weight: 500;
   padding: 7px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: color .2s, background .2s;
 }
-.tab:hover { color: var(--text); }
 .tab .short { display: none; }
 .tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 .theme-toggle {
@@ -137,7 +135,6 @@ a { color: var(--accent); }
   font: inherit; font-size: .85rem; font-weight: 600; padding: 7px 12px; border-radius: 999px; cursor: pointer;
   box-shadow: var(--shadow-sm); transition: transform .15s, border-color .2s;
 }
-.theme-toggle:hover { border-color: var(--accent); }
 .theme-toggle:active { transform: scale(.95); }
 .theme-icon { font-size: 1rem; line-height: 1; }
 
@@ -211,9 +208,7 @@ button.primary, button.secondary {
   transition: transform .15s, box-shadow .2s, border-color .2s, background .2s;
 }
 button.primary { border: 0; background: var(--grad); color: #fff; box-shadow: 0 8px 22px rgb(192 38 211 / .28); }
-button.primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgb(192 38 211 / .38); }
 button.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-button.secondary:hover { border-color: var(--accent); }
 button.primary:active, button.secondary:active { transform: scale(.97); }
 button:disabled { opacity: .55; cursor: wait; }
 
@@ -247,7 +242,6 @@ button:disabled { opacity: .55; cursor: wait; }
   font: inherit; font-size: .9rem; font-weight: 500; cursor: pointer; padding: 6px 12px; border-radius: 999px;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
-.link-btn:hover { color: var(--text); border-color: var(--accent); }
 .reveal-title { font-size: clamp(1.4rem, 3.5vw, 2rem); margin-top: 8px; }
 .reveal-message { margin: 0; }
 
@@ -297,7 +291,6 @@ button:disabled { opacity: .55; cursor: wait; }
 .reveal-count { margin: 0; color: var(--accent); font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; }
 .reveal-name { margin: 0; font-size: clamp(1.5rem, 3.5vw, 2.2rem); line-height: 1.15; }
 .reveal-name a { color: inherit; text-decoration: none; }
-.reveal-name a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
 .reveal-info .desc { font-size: 1rem; line-height: 1.65; color: var(--muted); }
 .reveal-info .tags { margin-top: 0; padding-top: 0; }
 .reveal-info .actions { margin-top: auto; }
@@ -382,7 +375,6 @@ button:disabled { opacity: .55; cursor: wait; }
 .card-body { position: relative; z-index: 1; background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card-title { font-family: var(--font-display); font-weight: 700; margin: 0; font-size: 1.05rem; line-height: 1.3; }
 .card-title a { color: inherit; text-decoration: none; }
-.card-title a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
 .meta { color: var(--muted); font-size: .85rem; display: flex; gap: 10px; flex-wrap: wrap; }
 .desc { font-size: .9rem; margin: 0; color: var(--muted); }
 .card .desc { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
@@ -396,10 +388,8 @@ button:disabled { opacity: .55; cursor: wait; }
   transition: border-color .2s, background .2s, transform .15s;
 }
 .trailer-btn { flex: 1; font-weight: 600; }
-.trailer-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
 .trailer-btn:active, .fav-btn:active { transform: scale(.96); }
 .fav-btn { display: grid; place-items: center; width: 44px; padding: 0; color: var(--muted); }
-.fav-btn:hover { border-color: var(--accent-2); color: var(--accent-2); }
 .fav-btn.on { color: #fff; background: var(--grad); border-color: transparent; box-shadow: 0 6px 16px rgb(192 38 211 / .3); }
 
 /* Heart icon: an outline that fills in when saved. */
@@ -457,6 +447,21 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
 .video iframe { width: 100%; height: 100%; border: 0; display: block; }
 #trailer-youtube { display: block; padding: 12px 18px 16px; color: var(--muted); font-size: .85rem; }
 
+/* Hover effects only on devices with a real mouse, so they don't "stick" after a tap on phones. */
+@media (hover: hover) {
+  .brand:hover { opacity: .85; }
+  .tab:hover { color: var(--text); }
+  .theme-toggle:hover { border-color: var(--accent); }
+  button.primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgb(192 38 211 / .38); }
+  button.secondary:hover { border-color: var(--accent); }
+  .link-btn:hover { color: var(--text); border-color: var(--accent); }
+  .reveal-name a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+  .card-title a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+  .trailer-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .fav-btn:hover { border-color: var(--accent-2); color: var(--accent-2); }
+  .fav-btn.on:hover { border-color: transparent; color: #fff; }
+}
+
 /* ----- Phones ----- */
 @media (max-width: 560px) {
   .top {
@@ -503,6 +508,16 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
   .install-app-word { display: none; }
   .brand { font-size: 1.1rem; gap: 8px; }
 }
+
+/* ----- Tap ripple: a soft circle from the finger, clipped to the button's shape ----- */
+.has-ripple { overflow: hidden; isolation: isolate; }
+.ripple {
+  position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: currentColor; opacity: .22; transform: scale(0);
+  animation: ripple .55s ease-out forwards;
+}
+.chip.selected .ripple, button.primary .ripple, .install-btn .ripple, .fav-btn.on .ripple { background: #fff; opacity: .35; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
