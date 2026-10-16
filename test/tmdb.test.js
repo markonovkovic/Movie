@@ -25,7 +25,7 @@ function fakeFetch(calls, { status = 200 } = {}) {
         { site: 'YouTube', key: 'fan', type: 'Trailer', official: false, name: 'Fan trailer' },
       ] }
       : pathname.startsWith('/3/movie/')
-        ? { ...SAMPLE[0], genres: [{ id: 18, name: 'Drama' }], genre_ids: undefined }
+        ? { ...SAMPLE[0], genres: [{ id: 18, name: 'Drama' }], genre_ids: undefined, runtime: 139 }
         : { page: 1, results: SAMPLE, total_results: 12345, total_pages: 900 };
     return { ok: status === 200, status, json: async () => body };
   };
@@ -89,12 +89,30 @@ test('recommendSource searches mood keywords per emotion, within its genres, and
   assert.strictEqual(moodCalls.length, 2, 'one mood search for picks, one for recent releases');
   assert.strictEqual(moodCalls[0].url.searchParams.get('with_keywords'), moodKeywords(['sad']).look.join('|'));
   assert.strictEqual(moodCalls[0].url.searchParams.get('with_genres'), '35|16|10751', 'keywords refine the genres');
-  assert.ok(calls.every((c) => c.url.searchParams.get('without_keywords') === moodKeywords(['sad']).avoid.join(',')));
+  const searches = calls.filter((c) => c.url.pathname === '/3/discover/movie');
+  assert.ok(searches.every((c) => c.url.searchParams.get('without_keywords') === moodKeywords(['sad']).avoid.join(',')));
   assert.ok(movies.some((m) => m.moodMatch));
 
   calls.length = 0;
   await tmdb.recommendSource([['Comedy']], { count: 3, emotions: ['sad'], mode: 'match' });
   assert.ok(calls.every((c) => !c.url.searchParams.get('with_keywords') && !c.url.searchParams.get('without_keywords')), 'match mode: genres only');
+});
+
+test('length filters every search by run-time, and picks get their run-time', async () => {
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  const movies = await tmdb.recommendSource([['Comedy']], { count: 2, emotions: ['happy'], length: 'short' });
+  const searches = calls.filter((c) => c.url.pathname === '/3/discover/movie');
+  assert.ok(searches.length > 0);
+  assert.ok(searches.every((c) => c.url.searchParams.get('with_runtime.lte') === '90' && c.url.searchParams.get('with_runtime.gte') === '60'));
+  const details = calls.filter((c) => /^\/3\/movie\/\d+$/.test(c.url.pathname));
+  assert.strictEqual(details.length, movies.length, 'one details lookup per pick');
+  assert.ok(movies.every((m) => m.runtime === 139));
+
+  calls.length = 0;
+  await tmdb.recommendSource([['Comedy']], { count: 2, length: 'long' });
+  assert.ok(calls.filter((c) => c.url.pathname === '/3/discover/movie')
+    .every((c) => c.url.searchParams.get('with_runtime.gte') === '120' && !c.url.searchParams.get('with_runtime.lte')));
 });
 
 test('recommendSource with typed genres searches for all of them first, then any', async () => {

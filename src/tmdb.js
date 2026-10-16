@@ -42,8 +42,18 @@ function toMovie(m) {
     description: m.overview,
     poster: m.poster_path ? IMAGE_BASE + m.poster_path : null,
     url: `https://www.themoviedb.org/movie/${m.id}`,
+    // Only movie details include the length; discover/search results don't.
+    ...(m.runtime ? { runtime: m.runtime } : {}),
   };
 }
+
+// "How much time do you have?" -> TMDB run-time filters (minutes). The 60-minute floor
+// keeps short films out of "short".
+const LENGTHS = {
+  short: { 'with_runtime.gte': 60, 'with_runtime.lte': 90 },
+  medium: { 'with_runtime.gte': 60, 'with_runtime.lte': 120 },
+  long: { 'with_runtime.gte': 120 },
+};
 
 function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   // v4 read-access tokens are long JWTs sent as a Bearer header; v3 keys go in the query string.
@@ -67,7 +77,9 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   // `required` genres (typed by the user) limit the search to those genres; emotions then rank the results.
   async function recommendSource(genreSets, {
     count, exclude = [], hide = [], random = Math.random, now = new Date(), required = [], emotions = [], mode = 'lift',
+    length,
   }) {
+    const runtime = LENGTHS[length] || {};
     const toIds = (genres) => [...new Set(genres.map((g) => GENRE_IDS[g]).filter(Boolean))];
     // TMDB has no Sport or Biography genre: an empty result lets the built-in list handle those.
     const ids = required.length ? toIds(required) : toIds(genreSets.flat());
@@ -89,7 +101,7 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
       const page = 1 + Math.floor(random() * maxPage);
       const data = await request('/discover/movie', {
         with_genres: withGenres, sort_by: 'popularity.desc', 'vote_average.gte': MIN_RATING, include_adult: false,
-        ...(useAvoid ? withoutAvoided : {}), ...params, page,
+        ...runtime, ...(useAvoid ? withoutAvoided : {}), ...params, page,
       });
       const results = data.results || [];
       if (!results.length && page > 1) return discover(withGenres, params, 1, { useAvoid });
@@ -147,9 +159,22 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
       }
       return [...byId.values()];
     };
-    return pickMovies(combine(moodFound, blended, found), genreSets, {
+    const picks = pickMovies(combine(moodFound, blended, found), genreSets, {
       count, exclude, hide, random, required, newestPool: combine(moodRecent, recent),
     });
+    return withRuntimes(picks);
+  }
+
+  // Adds each pick's length (one small details request per movie; skipped if it fails).
+  async function withRuntimes(movies) {
+    return Promise.all(movies.map(async (m) => {
+      try {
+        const details = await request(`/movie/${Number(m.id)}`);
+        return details.runtime ? { ...m, runtime: details.runtime } : m;
+      } catch {
+        return m;
+      }
+    }));
   }
 
   // Browse/search the whole catalogue, 20 movies per page.
@@ -202,4 +227,4 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   return { recommendSource, browse, getMovie, getTrailer, genres: GENRES };
 }
 
-module.exports = { createTmdbClient, GENRE_IDS, toMovie };
+module.exports = { createTmdbClient, GENRE_IDS, toMovie, LENGTHS };

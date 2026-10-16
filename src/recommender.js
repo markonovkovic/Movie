@@ -6,6 +6,7 @@ const { pickMovies, DEFAULT_COUNT } = require('./picker');
 const { parseGenres, ALL_GENRES } = require('./genres');
 
 const MAX_EMOTIONS = 3;
+const LENGTH_LABELS = { short: 'Under 90 min', medium: 'Under 2 hours', long: 'Long (2h+)' };
 
 class RecommendationError extends Error {
   constructor(message, status = 400) {
@@ -108,6 +109,10 @@ async function recommend(input = {}, deps = {}) {
   const count = Math.min(Math.max(parseInt(input.count, 10) || DEFAULT_COUNT, 1), 10);
   const exclude = Array.isArray(input.exclude) ? input.exclude : [];
   const hide = Array.isArray(input.hide) ? input.hide : [];
+  // Optional "how much time do you have?": short (≤90 min), medium (≤2h) or long (2h+).
+  // Needs run-times, so it applies to TMDB picks; the built-in list has none and ignores it.
+  const length = input.length || undefined;
+  if (length && !LENGTH_LABELS[length]) throw new RecommendationError(`Unknown length "${input.length}".`);
   const random = deps.random || Math.random;
 
   const requested = resolveGenres(input);
@@ -125,7 +130,7 @@ async function recommend(input = {}, deps = {}) {
   let source = 'local';
   if (deps.source) {
     try {
-      movies = await deps.source(genreSets, { count, exclude, hide, random, required, emotions: resolved.keys, mode });
+      movies = await deps.source(genreSets, { count, exclude, hide, random, required, emotions: resolved.keys, mode, length });
       if (movies && movies.length) source = 'tmdb';
     } catch (err) {
       // Fall back to the built-in catalogue if the external API fails.
@@ -163,6 +168,7 @@ async function recommend(input = {}, deps = {}) {
     mode,
     genres,
     requestedGenres: required,
+    length: length ? { key: length, label: LENGTH_LABELS[length] } : undefined,
     matchedGenreWords: requested.matched.length ? requested.matched : undefined,
     message,
     source,

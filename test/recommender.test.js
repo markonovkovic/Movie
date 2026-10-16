@@ -204,3 +204,12 @@ test('recommend passes hidden ids to the picker and the external source', async 
   await recommend({ emotions: ['happy'], hide: [42] }, { source: async (sets, opts) => { received = opts.hide; return []; } });
   assert.deepStrictEqual(received, [42]);
 });
+
+test('length is validated, passed to the source and echoed back', async () => {
+  await assert.rejects(recommend({ emotions: ['happy'], length: 'forever' }), /Unknown length/);
+  let received;
+  const res = await recommend({ emotions: ['happy'], length: 'short' }, { source: async (sets, opts) => { received = opts.length; return []; } });
+  assert.strictEqual(received, 'short');
+  assert.deepStrictEqual(res.length, { key: 'short', label: 'Under 90 min' });
+  assert.strictEqual(res.movies.length, 3, 'the built-in list still answers (it has no run-times, so length is ignored)');
+});

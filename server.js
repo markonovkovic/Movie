@@ -190,6 +190,7 @@ function createServer({ tmdb, detectMood } = {}) {
             mode: searchParams.get('mode') || undefined,
             exclude: (searchParams.get('exclude') || '').split(',').filter(Boolean),
             hide: (searchParams.get('hide') || '').split(',').filter(Boolean),
+            length: searchParams.get('length') || undefined,
           };
         return sendJson(res, 200, await recommend(input, { source, detectMood }));
       }

@@ -108,6 +108,7 @@ const MAX_EMOTIONS = 3;
 const state = {
   selected: [],   // selected emotion keys, in the order they were picked
   genres: [],     // the selected genre (at most one); empty means any genre
+  length: null,   // 'short' | 'medium' | 'long'; null means any length
   shown: [],      // ids already recommended for this mood, for "show me 3 others"
 };
 
@@ -285,7 +286,7 @@ function movieCard(m) {
   const poster = m.poster
     ? `<div class="poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
     : `<div class="poster" style="background:linear-gradient(135deg, ${c1}, ${c2})"><div><span class="poster-emoji">${emoji}</span>${escapeHtml(m.title)}</div></div>`;
-  const meta = [m.year, m.rating ? `⭐ ${m.rating}` : null, m.director].filter(Boolean).map(escapeHtml);
+  const meta = [m.year, m.rating ? `⭐ ${m.rating}` : null, formatRuntime(m.runtime), m.director].filter(Boolean).map(escapeHtml);
   return `
     <article class="card">
       ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
@@ -401,6 +402,34 @@ $('#genre-chips').addEventListener('click', (e) => {
   renderGenreChips();
 });
 
+/* "How much time do you have?": none by default, at most one; doesn't start a search by itself. */
+function renderLengthChips() {
+  document.querySelectorAll('.length-opt').forEach((c) => {
+    const on = c.dataset.length === state.length;
+    c.classList.toggle('selected', on);
+    c.setAttribute('aria-pressed', String(on));
+  });
+}
+$('#length-chips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.length-opt');
+  if (!chip) return;
+  state.length = state.length === chip.dataset.length ? null : chip.dataset.length;
+  renderLengthChips();
+});
+
+// A chip's emoji and text as one label: "⚡ Under 90 min".
+function chipLabel(chip) {
+  return chip ? [...chip.childNodes].map((n) => n.textContent.trim()).filter(Boolean).join(' ') : '';
+}
+
+// 92 -> "1h 32m", 45 -> "45m"
+function formatRuntime(minutes) {
+  if (!minutes) return '';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? `${h}h${m ? ` ${m}m` : ''}` : `${m}m`;
+}
+
 $('#find').addEventListener('click', () => find());
 
 function find() {
@@ -431,6 +460,7 @@ async function getRecommendations({ fresh }) {
   await configReady;
   const body = { exclude: state.shown, hide: hiddenIds(), emotions: state.selected };
   if (state.genres.length) body.genres = state.genres;
+  if (state.length) body.length = state.length;
 
   setStatus('');
   $('#find').disabled = true;
@@ -438,8 +468,9 @@ async function getRecommendations({ fresh }) {
   showStep('reveal');
   // Until the results arrive, show what was picked.
   $('#reveal-title').textContent = [
-    state.selected.map((k) => $(`.chip[data-emotion="${k}"]`)?.textContent.trim()).filter(Boolean).join(' + '),
+    state.selected.map((k) => chipLabel($(`.chip[data-emotion="${k}"]`))).filter(Boolean).join(' + '),
     state.genres.map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + '),
+    state.length ? chipLabel($(`.length-opt[data-length="${state.length}"]`)) : '',
   ].filter(Boolean).join('  ·  ') || 'Finding your movies…';
   $('#reveal-message').textContent = '';
   $('#stage').innerHTML = '';
@@ -465,7 +496,8 @@ async function getRecommendations({ fresh }) {
 
     const moods = data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ');
     const genres = (data.requestedGenres || []).map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + ');
-    $('#reveal-title').textContent = [moods, genres].filter(Boolean).join('  ·  ');
+    const length = data.length ? chipLabel($(`.length-opt[data-length="${data.length.key}"]`)) : '';
+    $('#reveal-title').textContent = [moods, genres, length].filter(Boolean).join('  ·  ');
     $('#reveal-message').textContent = data.message;
     $('#loading').hidden = true;
     startReveal(data.movies);
@@ -493,7 +525,7 @@ function revealCard(m, i, total) {
   const poster = m.poster
     ? `<div class="reveal-poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
     : `<div class="reveal-poster placeholder" style="background:linear-gradient(135deg, ${c1}, ${c2})"><span>${emoji}</span></div>`;
-  const meta = [m.year, m.director].filter(Boolean).map(escapeHtml);
+  const meta = [m.year, formatRuntime(m.runtime), m.director].filter(Boolean).map(escapeHtml);
   return `
     <article class="reveal-card${m.isNewest ? ' is-newest' : ''}" aria-label="Movie ${i + 1} of ${total}: ${escapeHtml(m.title)}">
       <div class="flip">
@@ -666,10 +698,12 @@ $('#change-mood').addEventListener('click', backToPick);
 function startOver() {
   state.selected = [];
   state.genres = [];
+  state.length = null;
   state.shown = [];
   setStatus('');
   renderChips();
   renderGenreChips();
+  renderLengthChips();
   backToPick();
 }
 $('#start-over').addEventListener('click', startOver);
