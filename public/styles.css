@@ -52,14 +52,18 @@ h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 4px; }
 h2 { margin: 0; }
 .sub { color: var(--muted); margin: 0 0 20px; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.hint { color: var(--muted); font-size: .85rem; margin: 0 0 16px; min-height: 1.3em; }
+.hint.warn { color: var(--accent); }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   padding: 8px 14px; border-radius: 999px; font: inherit; cursor: pointer;
   transition: transform .1s, border-color .15s, background .15s;
 }
-.chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+@media (hover: hover) {
+  .chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+}
 .chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chip .emoji { font-size: 1.2rem; }
 
@@ -98,6 +102,13 @@ button:disabled { opacity: .6; cursor: wait; }
 .grid.three .card:nth-child(2) { animation-delay: .07s; }
 .grid.three .card:nth-child(3) { animation-delay: .14s; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+.card { position: relative; }
+.new-badge {
+  position: absolute; top: 10px; left: 10px; z-index: 1;
+  background: var(--accent); color: #fff; font-size: .78rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px; box-shadow: 0 2px 6px rgb(0 0 0 / .3);
+}
 
 .poster {
   aspect-ratio: 2 / 3; display: grid; place-items: center; text-align: center;

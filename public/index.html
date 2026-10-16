@@ -21,14 +21,15 @@
     <!-- Mood view -->
     <section id="view-mood" class="view">
       <h1>How are you feeling right now?</h1>
-      <p class="sub">Pick an emotion or describe it in your own words, and we'll pick 3 movies for you.</p>
+      <p class="sub">Pick one or more emotions, or describe it in your own words, and we'll pick 3 movies for you.</p>
 
-      <div id="emotion-chips" class="chips" aria-label="Emotions"></div>
+      <div id="emotion-chips" class="chips" aria-label="Emotions" aria-describedby="chip-hint"></div>
+      <p id="chip-hint" class="hint"></p>
 
       <form id="text-form" class="text-form">
         <label for="feeling-text" class="visually-hidden">Describe how you feel</label>
         <input id="feeling-text" type="text" maxlength="300" autocomplete="off"
-               placeholder="…or write it, e.g. &quot;stressed after a long day at work&quot;">
+               placeholder="…or write it, e.g. &quot;tired but kind of lonely&quot;">
         <button type="submit" class="primary">Find movies</button>
       </form>
 

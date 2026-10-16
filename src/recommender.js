@@ -2,8 +2,9 @@
 
 const { MOVIES } = require('./movies');
 const { EMOTIONS, detectEmotion } = require('./emotions');
+const { pickMovies, DEFAULT_COUNT } = require('./picker');
 
-const DEFAULT_COUNT = 3;
+const MAX_EMOTIONS = 3;
 
 class RecommendationError extends Error {
   constructor(message, status = 400) {
@@ -14,95 +15,66 @@ class RecommendationError extends Error {
 
 const NOT_UNDERSTOOD = "Sorry, I couldn't tell how you feel from that. Try describing your mood, e.g. \"stressed\", \"happy\" or \"lonely\", or pick an emotion.";
 
-/**
- * Works out which emotion to use from either an explicit key or free text.
- * An explicit, valid emotion key always wins over text. Free text goes to the
- * AI detector when one is configured, with keyword matching as the fallback.
- */
-async function resolveEmotion({ emotion, text } = {}, { detectMood } = {}) {
-  if (emotion) {
-    const key = String(emotion).toLowerCase();
-    if (!EMOTIONS[key]) throw new RecommendationError(`Unknown emotion "${emotion}".`);
-    return { key, detectedFrom: 'selection' };
+// Accepts `emotions: ['sad', 'loved']`, `emotions: 'sad,loved'` or the older `emotion: 'sad'`.
+function parseSelected({ emotion, emotions } = {}) {
+  let list = emotions ?? (emotion ? [emotion] : []);
+  if (typeof list === 'string') list = list.split(',');
+  if (!Array.isArray(list)) throw new RecommendationError('"emotions" must be a list of emotion keys.');
+  const keys = [...new Set(list.map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
+  for (const key of keys) {
+    if (!EMOTIONS[key]) throw new RecommendationError(`Unknown emotion "${key}".`);
   }
-  if (!text || !String(text).trim()) {
-    throw new RecommendationError('Provide an "emotion" or some "text" describing how you feel.');
-  }
+  if (keys.length > MAX_EMOTIONS) throw new RecommendationError(`Pick at most ${MAX_EMOTIONS} emotions.`);
+  return keys;
+}
 
+// Detects emotions in free text: AI first when configured, keywords as the fallback.
+async function detectFromText(text, detectMood) {
   if (detectMood) {
     try {
       const ai = await detectMood(text);
-      if (!ai.emotion) throw new RecommendationError(NOT_UNDERSTOOD, 422);
-      return { key: ai.emotion, detectedFrom: 'ai', reason: ai.reason };
+      return { keys: ai.emotions, detectedFrom: 'ai', reason: ai.reason };
     } catch (err) {
-      if (err instanceof RecommendationError) throw err;
       console.warn(`[recommend] AI mood detection failed, using keywords: ${err.message}`);
     }
   }
-
   const result = detectEmotion(text);
-  if (!result.emotion) throw new RecommendationError(NOT_UNDERSTOOD, 422);
-  return { key: result.emotion, detectedFrom: 'text', matched: result.matched };
-}
-
-function shuffle(items, random) {
-  const arr = items.slice();
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+  return { keys: result.emotions, detectedFrom: 'text', matched: result.matched };
 }
 
 /**
- * Picks `count` movies from `catalogue` for the given genres.
- * Movies matching more of the target genres (and rated higher) are preferred,
- * with randomness so repeated requests give fresh suggestions.
+ * Works out which emotions to use from the selected buttons and/or free text.
+ * Both can be combined; text that can't be understood is an error only when
+ * nothing was selected.
  */
-function pickMovies(catalogue, genres, { count = DEFAULT_COUNT, exclude = [], random = Math.random } = {}) {
-  const excluded = new Set(exclude.map(Number));
-  const wanted = new Set(genres);
-
-  let candidates = catalogue
-    .filter((m) => !excluded.has(m.id))
-    .map((m) => ({ movie: m, overlap: m.genres.filter((g) => wanted.has(g)).length }))
-    .filter((c) => c.overlap > 0);
-
-  // If the user has already seen everything, start over rather than return nothing.
-  if (candidates.length < count && excluded.size) {
-    return pickMovies(catalogue, genres, { count, random });
+async function resolveEmotions(input = {}, { detectMood } = {}) {
+  const selected = parseSelected(input);
+  const text = input.text ? String(input.text).trim() : '';
+  if (!selected.length && !text) {
+    throw new RecommendationError('Pick an emotion or describe how you feel.');
   }
+  if (!text) return { keys: selected, detectedFrom: 'selection' };
 
-  // Weighted random: overlap and rating raise the odds without making picks deterministic.
-  candidates = candidates.map((c) => ({
-    ...c,
-    weight: c.overlap * 2 + (c.movie.rating || 5) / 2 + random() * 4,
-  }));
-  candidates.sort((a, b) => b.weight - a.weight);
+  const detected = await detectFromText(text, detectMood);
+  if (!detected.keys.length && !selected.length) throw new RecommendationError(NOT_UNDERSTOOD, 422);
+  const keys = [...new Set([...selected, ...detected.keys])].slice(0, MAX_EMOTIONS);
+  const added = detected.keys.filter((k) => keys.includes(k) && !selected.includes(k));
+  if (!added.length) return { keys, detectedFrom: 'selection' }; // the text added nothing new
+  return {
+    ...detected,
+    keys,
+    matched: detected.matched && detected.matched.filter((m) => added.includes(m.emotion)),
+  };
+}
 
-  // Take the strongest few, then make sure the three aren't all from one genre if avoidable.
-  const pool = shuffle(candidates.slice(0, Math.max(count * 4, 12)), random);
-  const picks = [];
-  const usedPrimary = new Set();
-  for (const c of pool) {
-    if (picks.length === count) break;
-    const primary = c.movie.genres.find((g) => wanted.has(g));
-    if (!usedPrimary.has(primary)) {
-      picks.push(c.movie);
-      usedPrimary.add(primary);
-    }
-  }
-  for (const c of pool) {
-    if (picks.length === count) break;
-    if (!picks.includes(c.movie)) picks.push(c.movie);
-  }
-  return picks;
+function joinLabels(labels) {
+  return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}` : labels[0];
 }
 
 /**
  * Main entry point.
- * @param {object} input  { emotion?, text?, mode?: 'lift'|'match', exclude?: number[], count? }
- * @param {object} deps   { source?: async (genres, opts) => movies[], detectMood?: async (text) => {emotion, reason}, random? }
+ * @param {object} input  { emotions?: string[], emotion?, text?, mode?: 'lift'|'match', exclude?: number[], count? }
+ * @param {object} deps   { source?: async (genreSets, opts) => movies[], detectMood?: async (text) => {emotions, reason}, random? }
  */
 async function recommend(input = {}, deps = {}) {
   const mode = input.mode === 'match' ? 'match' : 'lift';
@@ -110,15 +82,20 @@ async function recommend(input = {}, deps = {}) {
   const exclude = Array.isArray(input.exclude) ? input.exclude : [];
   const random = deps.random || Math.random;
 
-  const resolved = await resolveEmotion(input, deps);
-  const emotion = EMOTIONS[resolved.key];
-  const genres = emotion[mode];
+  const resolved = await resolveEmotions(input, deps);
+  const chosen = resolved.keys.map((key) => ({ key, ...EMOTIONS[key] }));
+  const genreSets = chosen.map((e) => e[mode]);
+
+  // Genres wanted by more of the chosen emotions come first.
+  const genreVotes = new Map();
+  genreSets.flat().forEach((g) => genreVotes.set(g, (genreVotes.get(g) || 0) + 1));
+  const genres = [...genreVotes.keys()].sort((a, b) => genreVotes.get(b) - genreVotes.get(a));
 
   let movies = null;
   let source = 'local';
   if (deps.source) {
     try {
-      movies = await deps.source(genres, { count, exclude, random });
+      movies = await deps.source(genreSets, { count, exclude, random });
       if (movies && movies.length) source = 'tmdb';
     } catch (err) {
       // Fall back to the built-in catalogue if the external API fails.
@@ -126,20 +103,32 @@ async function recommend(input = {}, deps = {}) {
     }
   }
   if (!movies || !movies.length) {
-    movies = pickMovies(MOVIES, genres, { count, exclude, random });
+    movies = pickMovies(MOVIES, genreSets, { count, exclude, random });
   }
 
+  const labels = chosen.map((e) => e.label.toLowerCase());
+  let message;
+  if (chosen.length === 1) {
+    message = mode === 'match' ? `Movies that match feeling ${labels[0]}.` : chosen[0].message;
+  } else {
+    message = mode === 'match'
+      ? `A mix that matches feeling ${joinLabels(labels)}.`
+      : `A mix picked for feeling ${joinLabels(labels)}.`;
+  }
+
+  const summary = chosen.map((e) => ({ key: e.key, label: e.label, emoji: e.emoji }));
   return {
-    emotion: { key: resolved.key, label: emotion.label, emoji: emotion.emoji },
+    emotions: summary,
+    emotion: summary[0], // first emotion, kept for older clients
     detectedFrom: resolved.detectedFrom,
     matchedWords: resolved.matched ? resolved.matched.map((m) => m.word) : undefined,
     reason: resolved.reason,
     mode,
     genres,
-    message: mode === 'match' ? `Movies that match feeling ${emotion.label.toLowerCase()}.` : emotion.message,
+    message,
     source,
     movies,
   };
 }
 
-module.exports = { recommend, pickMovies, resolveEmotion, RecommendationError };
+module.exports = { recommend, pickMovies, resolveEmotions, RecommendationError, MAX_EMOTIONS };

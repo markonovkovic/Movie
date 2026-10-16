@@ -39,6 +39,8 @@ test('GET /api/recommend works with query params', async () => {
   const data = await (await fetch(`${base}/api/recommend?emotion=happy&mode=match`)).json();
   assert.strictEqual(data.mode, 'match');
   assert.strictEqual(data.movies.length, 3);
+  const multi = await (await fetch(`${base}/api/recommend?emotions=sad,loved`)).json();
+  assert.deepStrictEqual(multi.emotions.map((e) => e.key), ['sad', 'loved']);
 });
 
 test('returns helpful errors', async () => {

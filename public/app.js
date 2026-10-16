@@ -15,10 +15,11 @@ const GENRE_STYLE = {
   War: ['🎖️', '#455a64', '#a1887f'], Western: ['🤠', '#a1572b', '#ffcc80'],
 };
 
+const MAX_EMOTIONS = 3;
 const state = {
-  emotion: null,  // selected emotion key
-  text: '',       // free-text description
-  seen: [],       // ids already recommended this session, for "show me 3 others"
+  selected: [],   // selected emotion keys, in the order they were picked
+  text: '',       // free-text description still to be analysed
+  seen: [],       // ids already recommended for this mood, for "show me 3 others"
 };
 
 // Every movie rendered on the page, so card buttons can find their movie.
@@ -84,6 +85,7 @@ function movieCard(m) {
   const meta = [m.year, m.rating ? `⭐ ${m.rating}` : null, m.director].filter(Boolean).map(escapeHtml);
   return `
     <article class="card">
+      ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
       ${poster}
       <div class="card-body">
         <h3 class="card-title">${m.url
@@ -112,18 +114,28 @@ function setStatus(msg, isError = false) {
 async function loadEmotions() {
   const { emotions } = await api('/api/emotions');
   $('#emotion-chips').innerHTML = emotions.map((e) =>
-    `<button class="chip" data-emotion="${e.key}" type="button"><span class="emoji">${e.emoji}</span>${escapeHtml(e.label)}</button>`).join('');
+    `<button class="chip" data-emotion="${e.key}" type="button" aria-pressed="false"><span class="emoji">${e.emoji}</span>${escapeHtml(e.label)}</button>`).join('');
+  renderChips();
 }
 
-function highlightChip(key) {
-  document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('selected', c.dataset.emotion === key));
+function renderChips(warning = '') {
+  document.querySelectorAll('.chip').forEach((c) => {
+    const on = state.selected.includes(c.dataset.emotion);
+    c.classList.toggle('selected', on);
+    c.setAttribute('aria-pressed', String(on));
+  });
+  const n = state.selected.length;
+  $('#chip-hint').classList.toggle('warn', Boolean(warning));
+  $('#chip-hint').textContent = warning || (n
+    ? `${n} of ${MAX_EMOTIONS} selected${n < MAX_EMOTIONS ? '. Tap another to mix moods.' : '.'}`
+    : `Tap up to ${MAX_EMOTIONS} emotions to mix them.`);
 }
 
 async function getRecommendations({ fresh }) {
   if (fresh) state.seen = [];
   const mode = document.querySelector('input[name="mode"]:checked').value;
-  const body = { mode, exclude: state.seen };
-  if (state.emotion) body.emotion = state.emotion; else body.text = state.text;
+  const body = { mode, exclude: state.seen, emotions: state.selected };
+  if (state.text) body.text = state.text;
 
   setStatus('Finding movies for you…');
   $('#shuffle').disabled = true;
@@ -134,11 +146,18 @@ async function getRecommendations({ fresh }) {
       body: JSON.stringify(body),
     });
     state.seen.push(...data.movies.map((m) => m.id));
-    highlightChip(data.emotion.key);
+    // Moods found in the text become selected chips, so "show me 3 others" needn't re-analyse it.
+    const keys = data.emotions.map((e) => e.key);
+    if (keys.join() !== state.selected.join()) {
+      state.selected = keys;
+      renderChips();
+    }
+    state.text = '';
 
     const via = data.detectedFrom === 'text' && data.matchedWords?.length
       ? ` (from “${data.matchedWords.join('”, “')}”)` : '';
-    $('#results-title').textContent = `${data.emotion.emoji} Feeling ${data.emotion.label.toLowerCase()}${via}`;
+    const feelings = data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ');
+    $('#results-title').textContent = `${feelings}${via}`;
     const reason = data.detectedFrom === 'ai' && data.reason ? `✨ ${data.reason} ` : '';
     $('#results-message').textContent = `${reason}${data.message} Genres: ${data.genres.join(', ')}.`;
     $('#recommendations').innerHTML = data.movies.map(movieCard).join('');
@@ -151,28 +170,44 @@ async function getRecommendations({ fresh }) {
   }
 }
 
+// Wait a moment after each tap so picking several emotions quickly makes one request.
+let chipTimer;
 $('#emotion-chips').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
-  state.emotion = chip.dataset.emotion;
+  const key = chip.dataset.emotion;
+  if (state.selected.includes(key)) {
+    state.selected = state.selected.filter((k) => k !== key);
+  } else if (state.selected.length >= MAX_EMOTIONS) {
+    return renderChips(`You can mix up to ${MAX_EMOTIONS} emotions. Tap a selected one to remove it first.`);
+  } else {
+    state.selected = [...state.selected, key];
+  }
   state.text = '';
-  $('#feeling-text').value = '';
-  getRecommendations({ fresh: true });
+  renderChips();
+  clearTimeout(chipTimer);
+  if (!state.selected.length) {
+    $('#results').hidden = true;
+    return setStatus('');
+  }
+  setStatus('');
+  chipTimer = setTimeout(() => getRecommendations({ fresh: true }), 350);
 });
 
 $('#text-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const text = $('#feeling-text').value.trim();
-  if (!text) return setStatus('Tell us how you feel first 🙂', true);
-  state.emotion = null;
+  if (!text && !state.selected.length) return setStatus('Pick an emotion or tell us how you feel first 🙂', true);
   state.text = text;
+  clearTimeout(chipTimer);
+  renderChips();
   getRecommendations({ fresh: true });
 });
 
 $('#shuffle').addEventListener('click', () => getRecommendations({ fresh: false }));
 
 document.querySelectorAll('input[name="mode"]').forEach((r) =>
-  r.addEventListener('change', () => { if (state.emotion || state.text) getRecommendations({ fresh: true }); }));
+  r.addEventListener('change', () => { if (state.selected.length || state.text) getRecommendations({ fresh: true }); }));
 
 /* ---------- Browse view ---------- */
 
