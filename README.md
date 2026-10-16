@@ -2,9 +2,11 @@
 
 Tell it how you feel and get **3 movies** to watch right now.
 
-- **Pick one or more emotions** (up to 3, e.g. Sad + Romantic) or **write it in your own words**
-  ("stressed after a long day at work", "tired but kind of lonely"). The text is analysed for emotion keywords, with simple negation handling.
-  With several emotions, movies that fit all of them rank highest, and each emotion is represented in the 3 picks.
+- **Pick one or more emotions** (up to 3, e.g. Sad + Romantic). Movies that fit all of them rank highest,
+  and each emotion is represented in the 3 picks.
+- **Pick a genre** (optional, up to 3; "Any genre" by default). Chosen genres are a firm rule: every pick is in
+  them, and with several (e.g. Romance + Comedy) movies having all of them come first. The emotions then decide
+  which ones fit your mood best, e.g. Happy + Horror favours horror-comedies. A genre on its own works too.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
 - Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
@@ -49,8 +51,9 @@ With TMDB, "All movies" lets you search any title, filter by genre, and sort by 
 Each title links to its TMDB page. If TMDB is unreachable, the app falls back to the built-in list automatically.
 Note: TMDB has no Sport or Biography genre, so those filters only exist in the built-in list.
 
-### AI mood detection (optional)
+### AI mood detection (optional, API only)
 
+The website's text box is for genres now; describing a mood in words is still available through the API's `text` field.
 Without configuration, typed feelings are matched against keyword lists in `src/emotions.js`.
 For much better understanding, add an [Anthropic API key](https://console.anthropic.com/settings/keys):
 
@@ -77,7 +80,8 @@ On the free plan the app sleeps after ~15 minutes without visitors, so the first
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `POST` | `/api/recommend` | Body: `{ "emotions": ["sad", "loved"] }` (1–3 emotions) and/or `{ "text": "I feel lonely" }`, plus optional `"mode": "lift" \| "match"` and `"exclude": [ids]`. Returns 3 movies. `"emotion": "sad"` still works. |
+| `POST` | `/api/recommend` | Body: `{ "emotions": ["sad", "loved"] }` (0–3 emotions) and/or `{ "genre": "funny sci-fi" }` (or `"genres": ["Comedy"]`), plus optional `"mode": "lift" \| "match"` and `"exclude": [ids]`. Returns 3 movies. `"text": "I feel lonely"` (mood from text) and `"emotion": "sad"` still work. |
+| `GET` | `/api/parse-genres?text=funny aliens` | The genres understood from text: `{ "genres": ["Comedy", "Sci-Fi"], "matched": [...] }`. |
 | `GET` | `/api/recommend?emotions=sad,loved&mode=match` | Same as above, using query params (`text`, `exclude=1,2,3` also supported). |
 | `GET` | `/api/emotions` | All emotions with their genre mappings. |
 | `GET` | `/api/movies?q=&genre=&sort=popularity\|rating\|year\|title&page=1` | List and search movies (TMDB: the whole catalogue, 20 per page). |
@@ -113,6 +117,7 @@ server.js            HTTP server, REST API and static file serving
 src/movies.js        Built-in movie catalogue
 src/emotions.js      Emotions → genres mapping and free-text emotion detection
 src/recommender.js   Resolves emotions (buttons, text, AI) and builds the recommendation
+src/genres.js        Understands genres in free text for the API ("scary" → Horror, "romcom" → Romance + Comedy)
 src/picker.js        Picks 3 movies (weighted random, covers every emotion, genre variety, no repeats)
 src/tmdb.js          TMDB client (browse, search, recommend, trailers)
 src/ai-mood.js       Optional AI mood detection with Claude

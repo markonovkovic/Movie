@@ -80,6 +80,21 @@ test('getTrailer picks the official YouTube trailer, by id or by title search', 
   assert.strictEqual(calls[1].url.pathname, `/3/movie/${SAMPLE[0].id}/videos`);
 });
 
+test('recommendSource with typed genres searches for all of them first, then any', async () => {
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  const movies = await tmdb.recommendSource([['Comedy', 'Family']], { count: 2, required: ['Romance', 'Comedy'] });
+  const withGenres = calls.map((c) => c.url.searchParams.get('with_genres'));
+  assert.ok(withGenres.includes('10749,35'), 'asks for movies with both genres');
+  assert.ok(withGenres.includes('10749|35'), 'falls back to either genre when few have both');
+  assert.ok(movies.every((m) => m.genres.includes('Romance') || m.genres.includes('Comedy')));
+  assert.ok(withGenres.includes('10749,35,10751'), 'also looks for the typed genres plus the mood genre (Family)');
+
+  calls.length = 0;
+  assert.deepStrictEqual(await tmdb.recommendSource([], { count: 3, required: ['Sport'] }), [], 'TMDB has no Sport genre');
+  assert.strictEqual(calls.length, 0);
+});
+
 test('recommendSource queries all emotion genres and only returns fitting movies', async () => {
   const calls = [];
   const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });

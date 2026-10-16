@@ -67,3 +67,12 @@ test('GET /api/trailer without TMDB returns a YouTube search link', async () => 
   assert.strictEqual(data.youtubeKey, null);
   assert.strictEqual(data.searchUrl, 'https://www.youtube.com/results?search_query=Up%202009%20trailer');
 });
+
+test('GET /api/parse-genres and genre-only recommendations', async () => {
+  const parsed = await (await fetch(`${base}/api/parse-genres?text=${encodeURIComponent('funny aliens')}`)).json();
+  assert.deepStrictEqual(parsed.genres, ['Comedy', 'Sci-Fi']);
+  const rec = await (await fetch(`${base}/api/recommend?genre=horror`)).json();
+  assert.ok(rec.movies.every((m) => m.genres.includes('Horror')));
+  const bad = await fetch(`${base}/api/recommend?genre=qwerty`);
+  assert.strictEqual(bad.status, 422);
+});

@@ -160,3 +160,29 @@ test('the newest pick varies between the best-fitting recent movies', () => {
   assert.ok(seen.size >= 3, `newest varied: ${[...seen].join(', ')}`);
   assert.ok(!seen.has('New, fits one mood only'), 'prefers recent movies fitting both moods');
 });
+
+test('typed genres are a hard rule, combined with the chosen emotions', async () => {
+  for (let i = 0; i < 15; i++) {
+    const res = await recommend({ emotions: ['happy'], genre: 'something scary' });
+    assert.deepStrictEqual(res.requestedGenres, ['Horror']);
+    assert.ok(res.movies.every((m) => m.genres.includes('Horror')), res.movies.map((m) => m.title).join());
+    assert.strictEqual(res.movies.length, 3);
+  }
+  const romcom = await recommend({ emotions: ['sad'], genre: 'romcom' });
+  assert.ok(romcom.movies.every((m) => m.genres.includes('Romance') && m.genres.includes('Comedy')), 'all picks are romantic comedies');
+  assert.match(romcom.message, /Romance and Comedy movies picked for feeling sad/);
+});
+
+test('a genre alone is enough; an unknown genre is a clear error', async () => {
+  const res = await recommend({ genre: 'sci-fi' });
+  assert.deepStrictEqual(res.emotions, []);
+  assert.strictEqual(res.message, 'Top Sci-Fi picks.');
+  assert.ok(res.movies.every((m) => m.genres.includes('Sci-Fi') && m.rating >= 6));
+  assert.strictEqual(res.movies.filter((m) => m.isNewest).length, 1);
+
+  await assert.rejects(recommend({ emotions: ['happy'], genre: 'qwerty' }), (err) => err.status === 422 && /know that genre/.test(err.message));
+  await assert.rejects(recommend({ genres: ['Nope'] }), /Unknown genre "Nope"/);
+  await assert.rejects(recommend({}), /Pick an emotion or type a genre/);
+  const listed = await recommend({ genres: 'comedy,HORROR' });
+  assert.deepStrictEqual(listed.requestedGenres, ['Comedy', 'Horror']);
+});

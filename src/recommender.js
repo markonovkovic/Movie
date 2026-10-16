@@ -3,6 +3,7 @@
 const { MOVIES } = require('./movies');
 const { EMOTIONS, detectEmotion } = require('./emotions');
 const { pickMovies, DEFAULT_COUNT } = require('./picker');
+const { parseGenres, ALL_GENRES } = require('./genres');
 
 const MAX_EMOTIONS = 3;
 
@@ -47,11 +48,35 @@ async function detectFromText(text, detectMood) {
  * Both can be combined; text that can't be understood is an error only when
  * nothing was selected.
  */
-async function resolveEmotions(input = {}, { detectMood } = {}) {
+const GENRE_NOT_UNDERSTOOD = "Sorry, I don't know that genre. Try words like \"comedy\", \"sci-fi\", \"scary\" or \"romcom\".";
+
+/**
+ * Genres the user asked for: a list (`genres: ['Comedy']` or 'Comedy,Horror') and/or
+ * free text (`genre: "something funny with aliens"`). Returns { genres, matched }.
+ */
+function resolveGenres({ genres, genre } = {}) {
+  let list = genres ?? [];
+  if (typeof list === 'string') list = list.split(',');
+  if (!Array.isArray(list)) throw new RecommendationError('"genres" must be a list of genre names.');
+  const byLower = new Map(ALL_GENRES.map((g) => [g.toLowerCase(), g]));
+  const named = list.map((g) => String(g).trim()).filter(Boolean).map((g) => {
+    const known = byLower.get(g.toLowerCase());
+    if (!known) throw new RecommendationError(`Unknown genre "${g}".`);
+    return known;
+  });
+
+  const text = genre ? String(genre).trim() : '';
+  const parsed = text ? parseGenres(text) : { genres: [], matched: [] };
+  if (text && !parsed.genres.length && !named.length) throw new RecommendationError(GENRE_NOT_UNDERSTOOD, 422);
+  return { genres: [...new Set([...named, ...parsed.genres])], matched: parsed.matched };
+}
+
+async function resolveEmotions(input = {}, { detectMood } = {}, { optional = false } = {}) {
   const selected = parseSelected(input);
   const text = input.text ? String(input.text).trim() : '';
   if (!selected.length && !text) {
-    throw new RecommendationError('Pick an emotion or describe how you feel.');
+    if (optional) return { keys: [], detectedFrom: 'none' };
+    throw new RecommendationError('Pick an emotion or type a genre.');
   }
   if (!text) return { keys: selected, detectedFrom: 'selection' };
 
@@ -82,7 +107,9 @@ async function recommend(input = {}, deps = {}) {
   const exclude = Array.isArray(input.exclude) ? input.exclude : [];
   const random = deps.random || Math.random;
 
-  const resolved = await resolveEmotions(input, deps);
+  const requested = resolveGenres(input);
+  const resolved = await resolveEmotions(input, deps, { optional: requested.genres.length > 0 });
+  const required = requested.genres;
   const chosen = resolved.keys.map((key) => ({ key, ...EMOTIONS[key] }));
   const genreSets = chosen.map((e) => e[mode]);
 
@@ -95,7 +122,7 @@ async function recommend(input = {}, deps = {}) {
   let source = 'local';
   if (deps.source) {
     try {
-      movies = await deps.source(genreSets, { count, exclude, random });
+      movies = await deps.source(genreSets, { count, exclude, random, required });
       if (movies && movies.length) source = 'tmdb';
     } catch (err) {
       // Fall back to the built-in catalogue if the external API fails.
@@ -103,12 +130,19 @@ async function recommend(input = {}, deps = {}) {
     }
   }
   if (!movies || !movies.length) {
-    movies = pickMovies(MOVIES, genreSets, { count, exclude, random });
+    movies = pickMovies(MOVIES, genreSets, { count, exclude, random, required });
   }
 
   const labels = chosen.map((e) => e.label.toLowerCase());
+  const genreLabel = required.length ? joinLabels(required) : '';
   let message;
-  if (chosen.length === 1) {
+  if (!chosen.length) {
+    message = `Top ${genreLabel} picks.`;
+  } else if (genreLabel) {
+    message = mode === 'match'
+      ? `${genreLabel} movies that match feeling ${joinLabels(labels)}.`
+      : `${genreLabel} movies picked for feeling ${joinLabels(labels)}.`;
+  } else if (chosen.length === 1) {
     message = mode === 'match' ? `Movies that match feeling ${labels[0]}.` : chosen[0].message;
   } else {
     message = mode === 'match'
@@ -125,10 +159,12 @@ async function recommend(input = {}, deps = {}) {
     reason: resolved.reason,
     mode,
     genres,
+    requestedGenres: required,
+    matchedGenreWords: requested.matched.length ? requested.matched : undefined,
     message,
     source,
     movies,
   };
 }
 
-module.exports = { recommend, pickMovies, resolveEmotions, RecommendationError, MAX_EMOTIONS };
+module.exports = { recommend, pickMovies, resolveEmotions, resolveGenres, RecommendationError, MAX_EMOTIONS };

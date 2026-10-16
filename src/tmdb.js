@@ -62,30 +62,55 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   }
 
   // Source for recommend(): popular movies rated MIN_RATING+ for one or more emotions,
-  // plus one recent release. `genreSets` has one genre list per emotion.
-  async function recommendSource(genreSets, { count, exclude = [], random = Math.random, now = new Date() }) {
-    const ids = [...new Set(genreSets.flat().map((g) => GENRE_IDS[g]).filter(Boolean))];
+  // plus one recent release. `genreSets` has one genre list per emotion (may be empty).
+  // `required` genres (typed by the user) limit the search to those genres; emotions then rank the results.
+  async function recommendSource(genreSets, { count, exclude = [], random = Math.random, now = new Date(), required = [] }) {
+    const toIds = (genres) => [...new Set(genres.map((g) => GENRE_IDS[g]).filter(Boolean))];
+    // TMDB has no Sport or Biography genre: an empty result lets the built-in list handle those.
+    const ids = required.length ? toIds(required) : toIds(genreSets.flat());
     if (!ids.length) return [];
-    const common = {
-      with_genres: ids.join('|'), // "|" = any of these genres
-      sort_by: 'popularity.desc',
-      'vote_average.gte': MIN_RATING,
-      include_adult: false,
-    };
+    const any = ids.join('|'); // "|" = any of these genres
+    const all = ids.join(','); // "," = all of these genres
     const today = now.toISOString().slice(0, 10);
     const yearAgo = new Date(now.getTime() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-    const [main, recent] = await Promise.all([
-      request('/discover/movie', { ...common, 'vote_count.gte': 300, page: 1 + Math.floor(random() * 10) }),
+
+    // A random page keeps picks fresh; narrow searches may have fewer pages, so retry page 1.
+    const discover = async (withGenres, params, maxPage) => {
+      const page = 1 + Math.floor(random() * maxPage);
+      const data = await request('/discover/movie', {
+        with_genres: withGenres, sort_by: 'popularity.desc', 'vote_average.gte': MIN_RATING, include_adult: false, ...params, page,
+      });
+      if (!(data.results || []).length && page > 1) return discover(withGenres, params, 1);
+      return data.results || [];
+    };
+    // Several typed genres (e.g. "romcom"): look for movies with all of them first, then any.
+    const search = async (params, maxPage) => {
+      if (required.length < 2) return discover(any, params, maxPage);
+      const strict = await discover(all, params, Math.min(maxPage, 3));
+      if (strict.length >= 8) return strict;
+      const loose = await discover(any, params, 1);
+      return [...strict, ...loose.filter((m) => !strict.some((x) => x.id === m.id))];
+    };
+
+    // With emotions and a typed genre, also fetch movies that are in the genre AND the mood's main
+    // genre (e.g. Horror + Comedy for "happy" and "scary"), so mood-fitting picks are in the mix.
+    const moodId = required.length
+      ? toIds(genreSets.flat()).find((id) => !ids.includes(id))
+      : undefined;
+    const blend = moodId
+      ? discover(`${all},${moodId}`, { 'vote_count.gte': 150 }, 2).catch(() => [])
+      : Promise.resolve([]);
+
+    const [found, recent, blended] = await Promise.all([
+      search({ 'vote_count.gte': 300 }, 10),
       // New releases have fewer votes, so the floor is lower; it still keeps out barely-rated titles.
-      request('/discover/movie', {
-        ...common,
-        'vote_count.gte': 100,
-        'primary_release_date.gte': yearAgo,
-        'primary_release_date.lte': today,
-      }).catch(() => ({ results: [] })),
+      search({ 'vote_count.gte': 100, 'primary_release_date.gte': yearAgo, 'primary_release_date.lte': today }, 1)
+        .catch(() => []),
+      blend,
     ]);
-    return pickMovies((main.results || []).map(toMovie), genreSets, {
-      count, exclude, random, newestPool: (recent.results || []).map(toMovie),
+    const main = [...blended, ...found.filter((m) => !blended.some((x) => x.id === m.id))];
+    return pickMovies(main.map(toMovie), genreSets, {
+      count, exclude, random, required, newestPool: recent.map(toMovie),
     });
   }
 
