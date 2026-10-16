@@ -52,7 +52,7 @@
 
     <!-- Browse view -->
     <section id="view-browse" class="view" hidden>
-      <h1>All movies</h1>
+      <h1>All movies <span id="source-badge" class="badge"></span></h1>
       <div class="filters">
         <input id="search" type="search" placeholder="Search title, director or year…" aria-label="Search">
         <select id="genre" aria-label="Genre"><option value="">All genres</option></select>
@@ -64,6 +64,7 @@
       </div>
       <p id="count" class="sub"></p>
       <div id="movie-list" class="grid"></div>
+      <div class="more"><button id="load-more" class="secondary" hidden>Load more movies</button></div>
     </section>
   </main>
 

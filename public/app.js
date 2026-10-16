@@ -42,7 +42,9 @@ function movieCard(m) {
     <article class="card">
       ${poster}
       <div class="card-body">
-        <h3 class="card-title">${escapeHtml(m.title)}</h3>
+        <h3 class="card-title">${m.url
+          ? `<a href="${encodeURI(m.url)}" target="_blank" rel="noopener">${escapeHtml(m.title)}</a>`
+          : escapeHtml(m.title)}</h3>
         <div class="meta">${meta.map((x) => `<span>${x}</span>`).join('')}</div>
         ${m.description ? `<p class="desc">${escapeHtml(m.description)}</p>` : ''}
         <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
@@ -125,14 +127,39 @@ document.querySelectorAll('input[name="mode"]').forEach((r) =>
 /* ---------- Browse view ---------- */
 
 let browseTimer;
-async function loadMovies() {
-  const params = new URLSearchParams({ q: $('#search').value, genre: $('#genre').value, sort: $('#sort').value });
+let browsePage = 1;
+let browseRequest = 0; // ignore responses from outdated searches
+
+async function loadMovies({ append = false } = {}) {
+  const requestId = ++browseRequest;
+  browsePage = append ? browsePage + 1 : 1;
+  const params = new URLSearchParams({
+    q: $('#search').value, genre: $('#genre').value, sort: $('#sort').value, page: browsePage,
+  });
+  $('#load-more').disabled = true;
   try {
-    const { total, movies } = await api(`/api/movies?${params}`);
-    $('#count').textContent = `${total} movie${total === 1 ? '' : 's'}`;
-    $('#movie-list').innerHTML = movies.map(movieCard).join('');
+    const data = await api(`/api/movies?${params}`);
+    if (requestId !== browseRequest) return;
+    const html = data.movies.map(movieCard).join('');
+    if (append) $('#movie-list').insertAdjacentHTML('beforeend', html);
+    else $('#movie-list').innerHTML = html;
+    const total = data.total.toLocaleString();
+    $('#count').textContent = data.notice || `${total} movie${data.total === 1 ? '' : 's'}`
+      + (data.source === 'tmdb' ? ' on TMDB' : '');
+    $('#load-more').hidden = data.page >= data.totalPages;
   } catch (err) {
-    $('#count').textContent = err.message;
+    if (requestId === browseRequest) $('#count').textContent = err.message;
+  } finally {
+    $('#load-more').disabled = false;
+  }
+}
+
+async function loadConfig() {
+  const { source } = await api('/api/config');
+  $('#source-badge').textContent = source === 'tmdb' ? 'TMDB · full catalogue' : 'Built-in list';
+  if (source === 'tmdb') {
+    $('#sort').insertAdjacentHTML('afterbegin', '<option value="popularity">Most popular</option>');
+    $('#sort').value = 'popularity';
   }
 }
 
@@ -141,9 +168,10 @@ async function loadGenres() {
   $('#genre').insertAdjacentHTML('beforeend', genres.map((g) => `<option>${escapeHtml(g)}</option>`).join(''));
 }
 
-$('#search').addEventListener('input', () => { clearTimeout(browseTimer); browseTimer = setTimeout(loadMovies, 200); });
-$('#genre').addEventListener('change', loadMovies);
-$('#sort').addEventListener('change', loadMovies);
+$('#search').addEventListener('input', () => { clearTimeout(browseTimer); browseTimer = setTimeout(() => loadMovies(), 250); });
+$('#genre').addEventListener('change', () => loadMovies());
+$('#sort').addEventListener('change', () => loadMovies());
+$('#load-more').addEventListener('click', () => loadMovies({ append: true }));
 
 /* ---------- Tabs ---------- */
 
@@ -157,7 +185,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   $('#view-browse').hidden = tab.dataset.view !== 'browse';
   if (tab.dataset.view === 'browse' && !browseLoaded) {
     browseLoaded = true;
-    loadGenres().then(loadMovies);
+    Promise.all([loadConfig(), loadGenres()]).then(() => loadMovies());
   }
 }));
 

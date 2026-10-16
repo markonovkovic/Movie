@@ -17,16 +17,26 @@ npm start          # http://localhost:3000
 npm test
 ```
 
-### Use the full TMDB catalogue (optional)
+### Connect to TMDB for all movies
 
-By default it uses the built-in catalogue of ~140 well-known films (`src/movies.js`).
-For recommendations from all movies on [The Movie Database](https://www.themoviedb.org/settings/api), set a free API key:
+Without configuration the app uses a built-in list of ~140 well-known films (`src/movies.js`).
+Connect it to [The Movie Database (TMDB)](https://www.themoviedb.org/) to use **its entire catalogue
+(about a million movies, with posters)** for both the "All movies" list and the recommendations:
 
-```bash
-TMDB_API_KEY=your_key npm start
-```
+1. Create a free account at themoviedb.org and get a key under **Settings → API**
+   (either the *API Key* or the *API Read Access Token* works).
+2. Copy `.env.example` to `.env` and paste the key:
+   ```bash
+   cp .env.example .env
+   # edit .env → TMDB_API_KEY=your_key
+   ```
+   (or run `TMDB_API_KEY=your_key npm start`)
+3. `npm start`. The console prints `Connected to TMDB…`, and the "All movies" page shows a
+   **TMDB · full catalogue** badge, a "Most popular" sort and **Load more** paging.
 
-If TMDB is unreachable, it falls back to the built-in catalogue automatically.
+With TMDB, "All movies" lets you search any title, filter by genre, and sort by popularity, rating, release date or title.
+Each title links to its TMDB page. If TMDB is unreachable, the app falls back to the built-in list automatically.
+Note: TMDB has no Sport or Biography genre, so those filters only exist in the built-in list.
 
 ## API
 
@@ -35,9 +45,10 @@ If TMDB is unreachable, it falls back to the built-in catalogue automatically.
 | `POST` | `/api/recommend` | Body: `{ "emotion": "sad" }` **or** `{ "text": "I feel lonely" }`, plus optional `"mode": "lift" \| "match"` and `"exclude": [ids]`. Returns 3 movies. |
 | `GET` | `/api/recommend?emotion=sad&mode=match` | Same as above, using query params (`text`, `exclude=1,2,3` also supported). |
 | `GET` | `/api/emotions` | All emotions with their genre mappings. |
-| `GET` | `/api/movies?q=&genre=&sort=title\|rating\|year` | List and search the catalogue. |
+| `GET` | `/api/movies?q=&genre=&sort=popularity\|rating\|year\|title&page=1` | List and search movies (TMDB: the whole catalogue, 20 per page). |
 | `GET` | `/api/movies/:id` | A single movie. |
 | `GET` | `/api/genres` | All genres. |
+| `GET` | `/api/config` | `{ "source": "tmdb" \| "local" }` |
 | `POST` | `/api/detect` | Body `{ "text": "..." }`: shows which emotion the text maps to. |
 
 Example:
@@ -66,7 +77,7 @@ server.js            HTTP server, REST API and static file serving
 src/movies.js        Built-in movie catalogue
 src/emotions.js      Emotions → genres mapping and free-text emotion detection
 src/recommender.js   Picks 3 movies (weighted random, genre variety, no repeats)
-src/tmdb.js          Optional TMDB integration
+src/tmdb.js          TMDB client (browse, search, recommend)
 public/              Web frontend (HTML/CSS/JS, no build step)
 test/                node:test unit and API tests
 ```

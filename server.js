@@ -7,7 +7,7 @@ const path = require('path');
 const { MOVIES, GENRES } = require('./src/movies');
 const { listEmotions, detectEmotion } = require('./src/emotions');
 const { recommend, RecommendationError } = require('./src/recommender');
-const { createTmdbSource } = require('./src/tmdb');
+const { createTmdbClient } = require('./src/tmdb');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MIME = {
@@ -18,6 +18,15 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 const MAX_BODY = 10 * 1024;
+
+// Minimal .env loader so TMDB_API_KEY can live in a file instead of the shell.
+function loadEnvFile(file = path.join(__dirname, '.env')) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+  }
+}
 
 function sendJson(res, status, data) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
@@ -61,8 +70,25 @@ function listMovies(query) {
     year: (a, b) => b.year - a.year,
     rating: (a, b) => b.rating - a.rating,
   };
+  sorters.popularity = sorters.rating;
   movies = movies.slice().sort(sorters[sort] || sorters.title);
-  return { total: movies.length, movies };
+  return { total: movies.length, page: 1, totalPages: 1, source: 'local', movies };
+}
+
+async function browseMovies(query, tmdb) {
+  if (!tmdb) return listMovies(query);
+  try {
+    const result = await tmdb.browse({
+      q: query.get('q') || '',
+      genre: query.get('genre') || '',
+      sort: query.get('sort') || 'popularity',
+      page: query.get('page') || 1,
+    });
+    return { ...result, source: 'tmdb' };
+  } catch (err) {
+    console.warn(`[movies] TMDB failed, using local catalogue: ${err.message}`);
+    return { ...listMovies(query), notice: 'TMDB is unavailable right now, showing the built-in list.' };
+  }
 }
 
 function serveStatic(req, res, pathname) {
@@ -81,7 +107,8 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-function createServer({ source } = {}) {
+function createServer({ tmdb } = {}) {
+  const source = tmdb ? tmdb.recommendSource : undefined;
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const { pathname, searchParams } = url;
@@ -99,14 +126,24 @@ function createServer({ source } = {}) {
       if (pathname === '/api/emotions' && req.method === 'GET') {
         return sendJson(res, 200, { emotions: listEmotions() });
       }
+      if (pathname === '/api/config' && req.method === 'GET') {
+        return sendJson(res, 200, { source: tmdb ? 'tmdb' : 'local' });
+      }
       if (pathname === '/api/genres' && req.method === 'GET') {
-        return sendJson(res, 200, { genres: GENRES });
+        return sendJson(res, 200, { genres: tmdb ? tmdb.genres : GENRES });
       }
       if (pathname === '/api/movies' && req.method === 'GET') {
-        return sendJson(res, 200, listMovies(searchParams));
+        return sendJson(res, 200, await browseMovies(searchParams, tmdb));
       }
       const movieMatch = pathname.match(/^\/api\/movies\/(\d+)$/);
       if (movieMatch && req.method === 'GET') {
+        if (tmdb) {
+          try {
+            return sendJson(res, 200, await tmdb.getMovie(movieMatch[1]));
+          } catch (err) {
+            return sendJson(res, /404/.test(err.message) ? 404 : 502, { error: 'Movie not found on TMDB.' });
+          }
+        }
         const movie = MOVIES.find((m) => m.id === Number(movieMatch[1]));
         return movie ? sendJson(res, 200, movie) : sendJson(res, 404, { error: 'Movie not found.' });
       }
@@ -140,11 +177,15 @@ function createServer({ source } = {}) {
 }
 
 if (require.main === module) {
+  loadEnvFile();
   const port = Number(process.env.PORT) || 3000;
-  const source = process.env.TMDB_API_KEY ? createTmdbSource(process.env.TMDB_API_KEY) : undefined;
-  createServer({ source }).listen(port, () => {
+  const key = (process.env.TMDB_API_KEY || '').trim();
+  const tmdb = key ? createTmdbClient(key) : undefined;
+  createServer({ tmdb }).listen(port, () => {
     console.log(`MoodFlix running at http://localhost:${port}`);
-    console.log(source ? 'Using TMDB for recommendations.' : 'Using built-in movie catalogue (set TMDB_API_KEY for more).');
+    console.log(tmdb
+      ? 'Connected to TMDB: browsing and recommending from the full movie catalogue.'
+      : 'Using the built-in movie catalogue. Set TMDB_API_KEY (or put it in .env) for all movies.');
   });
 }
 
