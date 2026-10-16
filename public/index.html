@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoviePicker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">🎬 MoviePicker</div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="mood" role="tab" aria-selected="true"><span class="long">What should I watch?</span><span class="short">🎭 Mood</span></button>
+      <button class="tab" data-view="browse" role="tab" aria-selected="false"><span class="long">All movies</span><span class="short">🎬 All</span></button>
+      <button class="tab" data-view="favourites" role="tab" aria-selected="false">♥ <span class="long">Favourites</span><span id="fav-count"></span></button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Mood view -->
+    <section id="view-mood" class="view">
+      <h1>How are you feeling right now?</h1>
+      <p class="sub">Pick an emotion or describe it in your own words, and we'll pick 3 movies for you.</p>
+
+      <div id="emotion-chips" class="chips" aria-label="Emotions"></div>
+
+      <form id="text-form" class="text-form">
+        <label for="feeling-text" class="visually-hidden">Describe how you feel</label>
+        <input id="feeling-text" type="text" maxlength="300" autocomplete="off"
+               placeholder="…or write it, e.g. &quot;stressed after a long day at work&quot;">
+        <button type="submit" class="primary">Find movies</button>
+      </form>
+
+      <div class="mode" role="radiogroup" aria-label="Recommendation mode">
+        <label><input type="radio" name="mode" value="lift" checked> Change my mood</label>
+        <label><input type="radio" name="mode" value="match"> Match my mood</label>
+      </div>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+
+      <div id="results" class="results" hidden>
+        <div class="results-head">
+          <div>
+            <h2 id="results-title"></h2>
+            <p id="results-message" class="sub"></p>
+          </div>
+          <button id="shuffle" class="secondary">🔀 Show me 3 others</button>
+        </div>
+        <div id="recommendations" class="grid three"></div>
+      </div>
+    </section>
+
+    <!-- Browse view -->
+    <section id="view-browse" class="view" hidden>
+      <h1>All movies <span id="source-badge" class="badge"></span></h1>
+      <div class="filters">
+        <input id="search" type="search" placeholder="Search title, director or year…" aria-label="Search">
+        <select id="genre" aria-label="Genre"><option value="">All genres</option></select>
+        <select id="sort" aria-label="Sort">
+          <option value="title">A–Z</option>
+          <option value="rating">Top rated</option>
+          <option value="year">Newest</option>
+        </select>
+      </div>
+      <p id="count" class="sub"></p>
+      <div id="movie-list" class="grid"></div>
+      <div class="more"><button id="load-more" class="secondary" hidden>Load more movies</button></div>
+    </section>
+
+    <!-- Favourites view -->
+    <section id="view-favourites" class="view" hidden>
+      <h1>Your favourites</h1>
+      <p class="sub">Saved on this device. Tap ♡ on any movie to add it here.</p>
+      <p id="favourites-empty" class="empty">No favourites yet. Find something you like and tap ♡.</p>
+      <div id="favourites-list" class="grid"></div>
+    </section>
+  </main>
+
+  <dialog id="trailer-dialog" aria-labelledby="trailer-title">
+    <div class="dialog-head">
+      <h2 id="trailer-title"></h2>
+      <button id="trailer-close" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="video">
+      <iframe id="trailer-frame" title="Trailer" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <a id="trailer-youtube" target="_blank" rel="noopener">Not the right video? Search on YouTube ↗</a>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

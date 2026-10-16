@@ -1,0 +1,14 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: moviepicker
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: TMDB_API_KEY
+        sync: false # Render asks for the value when you create the service
+      - key: ANTHROPIC_API_KEY
+        sync: false # optional, enables AI mood detection
