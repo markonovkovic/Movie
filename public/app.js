@@ -723,6 +723,8 @@ async function loadMovies({ append = false } = {}) {
     q: $('#search').value, genre: $('#genre').value, sort: $('#sort').value, page: browsePage,
   });
   $('#load-more').disabled = true;
+  // The first A–Z list takes a few seconds to build on the server.
+  if (!append) $('#count').textContent = 'Loading…';
   try {
     const data = await api(`/api/movies?${params}`);
     if (requestId !== browseRequest) return;

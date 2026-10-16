@@ -76,3 +76,11 @@ test('GET /api/parse-genres and genre-only recommendations', async () => {
   const bad = await fetch(`${base}/api/recommend?genre=qwerty`);
   assert.strictEqual(bad.status, 422);
 });
+
+test('the built-in list sorts A–Z with letters first and numbers last', async () => {
+  const { movies } = await (await fetch(`${base}/api/movies?sort=title`)).json();
+  const titles = movies.map((m) => m.title);
+  const firstNumber = titles.findIndex((t) => /^\d/.test(t));
+  assert.ok(firstNumber > 0 && titles.slice(firstNumber).every((t) => /^\d/.test(t)), titles.slice(-5).join());
+  assert.strictEqual(titles[0][0], 'A');
+});
