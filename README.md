@@ -16,6 +16,7 @@ Tell it how you feel and get **3 movies** to watch right now.
   to go back to the first screen with nothing selected.
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
+- **Light / dark theme**: the header toggle switches between Auto (follows the device), Light and Dark; the choice is remembered on that device.
 - **♡ Favourites**: save movies to a watchlist (stored in your browser, on that device).
 - **AI mood detection** (optional): with an Anthropic API key, Claude understands any description
   ("my boss yelled at me and I just want to hide under a blanket"), slang, emoji and other languages.
