@@ -145,3 +145,18 @@ test('the newest pick comes from newestPool when it has a fitting movie', () => 
   assert.deepStrictEqual(picks.filter((m) => m.isNewest).map((m) => m.title), ['New and good']);
   assert.strictEqual(picks[0].title, 'New and good');
 });
+
+test('the newest pick varies between the best-fitting recent movies', () => {
+  const catalogue = [1, 2, 3, 4].map((id) => ({ id, title: `Old ${id}`, genres: ['Drama'], rating: 8, year: 1990 }));
+  const pool = [
+    ...[10, 11, 12, 13, 14, 15, 16].map((id) => ({ id, title: `New ${id}`, genres: ['Drama', 'Romance'], rating: 7, year: 2026 })),
+    { id: 20, title: 'New, fits one mood only', genres: ['Drama'], rating: 9.5, year: 2026 },
+  ];
+  const seen = new Set();
+  for (let i = 0; i < 60; i++) {
+    const [newest] = pickMovies(catalogue, [['Drama'], ['Romance']], { newestPool: pool }).filter((m) => m.isNewest);
+    seen.add(newest.title);
+  }
+  assert.ok(seen.size >= 3, `newest varied: ${[...seen].join(', ')}`);
+  assert.ok(!seen.has('New, fits one mood only'), 'prefers recent movies fitting both moods');
+});
