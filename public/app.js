@@ -475,10 +475,11 @@ async function getRecommendations({ fresh }) {
   $('#reveal-message').textContent = '';
   $('#stage').innerHTML = '';
   $('#stage').hidden = true;
+  $('#stories').hidden = true;
   $('#reveal-nav').hidden = true;
   $('#swipe-hint').hidden = true;
   $('#summary').hidden = true;
-  $('#loading').hidden = false;
+  showLoading();
   try {
     const [data] = await Promise.all([
       api('/api/recommend', {
@@ -489,7 +490,9 @@ async function getRecommendations({ fresh }) {
       wait(1400), // let the shuffle animation play
     ]);
     if (requestId !== latestRequest) return;
-    await Promise.all(data.movies.map((m) => preload(m.poster)));
+    // Load the image each card will show (the wide backdrop on wide screens) before it flips.
+    const wide = window.matchMedia('(min-width: 561px)').matches;
+    await Promise.all(data.movies.map((m) => preload(wide ? m.backdrop || m.poster : m.poster)));
     if (requestId !== latestRequest) return;
 
     state.shown.push(...data.movies.map((m) => m.id));
@@ -499,11 +502,11 @@ async function getRecommendations({ fresh }) {
     const length = data.length ? chipLabel($(`.length-opt[data-length="${data.length.key}"]`)) : '';
     $('#reveal-title').textContent = [moods, genres, length].filter(Boolean).join('  ·  ');
     $('#reveal-message').textContent = data.message;
-    $('#loading').hidden = true;
+    hideLoading();
     startReveal(data.movies);
   } catch (err) {
     if (requestId !== latestRequest) return;
-    $('#loading').hidden = true;
+    hideLoading();
     showStep('pick');
     setStatus(err.message, true);
   } finally {
@@ -514,44 +517,75 @@ async function getRecommendations({ fresh }) {
   }
 }
 
+/* ---------- Loading: fanned glass cards and steps of what's happening ---------- */
+
+const LOADING_STEPS = ['Reading your mood…', 'Searching 5,000+ films…', 'Matching the vibe…', 'Picking your top 3…'];
+let loadingTimer;
+function showLoading() {
+  let step = 0;
+  $('#loading-text').textContent = LOADING_STEPS[0];
+  $('#loading').hidden = false;
+  clearInterval(loadingTimer);
+  loadingTimer = setInterval(() => {
+    step = Math.min(step + 1, LOADING_STEPS.length - 1);
+    const el = $('#loading-text');
+    el.classList.remove('step-in');
+    void el.offsetWidth; // restart the animation
+    el.textContent = LOADING_STEPS[step];
+    el.classList.add('step-in');
+  }, 650);
+}
+function hideLoading() {
+  clearInterval(loadingTimer);
+  $('#loading').hidden = true;
+}
+
 /* ---------- One-by-one reveal ---------- */
 
 const reveal = { movies: [], index: -1, flipped: new Set(), busy: false };
 
+const PLAY_ICON = '<svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+
+// Concept A, "cinematic": the poster fills the card (the wide backdrop on wide screens),
+// with the details over a dark fade at the bottom.
 function revealCard(m, i, total) {
   rendered.set(movieKey(m), m);
   const key = escapeHtml(movieKey(m));
   const [emoji, c1, c2] = GENRE_STYLE[m.genres[0]] || ['🎬', '#555', '#999'];
-  const poster = m.poster
-    ? `<div class="reveal-poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
-    : `<div class="reveal-poster placeholder" style="background:linear-gradient(135deg, ${c1}, ${c2})"><span>${emoji}</span></div>`;
+  const images = m.poster
+    ? `--poster:url('${encodeURI(m.poster)}');--backdrop:url('${encodeURI(m.backdrop || m.poster)}')`
+    : `--poster:linear-gradient(135deg, ${c1}, ${c2});--backdrop:linear-gradient(135deg, ${c1}, ${c2})`;
   const meta = [m.year, formatRuntime(m.runtime), m.director].filter(Boolean).map(escapeHtml);
+  const kicker = [`Pick ${i + 1} of ${total}`, m.moodMatch ? '✨ Mood match' : ''].filter(Boolean).join(' · ');
+  const rating = m.rating
+    ? `<div class="rating-ring" style="--pct:${Math.min(m.rating * 10, 100)}%" role="img" aria-label="Rated ${escapeHtml(m.rating)} out of 10"><b>${escapeHtml(m.rating)}</b></div>`
+    : '';
   return `
     <article class="reveal-card${m.isNewest ? ' is-newest' : ''}" aria-label="Movie ${i + 1} of ${total}: ${escapeHtml(m.title)}">
       <div class="flip">
         <div class="face back" aria-hidden="true">
-          <span class="back-reel">🎞️</span>
-          <span class="back-label">Pick ${i + 1} of ${total}</span>
+          <span class="back-number">${i + 1}</span>
+          <span class="back-label">of ${total}</span>
           <span class="back-tap">Tap to reveal</span>
         </div>
-        <div class="face front">
-          <div class="poster-wrap">
-            ${poster}
-            ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
-          </div>
-          <div class="reveal-info">
-            <p class="reveal-count">Pick ${i + 1} of ${total}</p>
+        <div class="face front cinematic" style="${images}">
+          ${m.poster ? '' : `<span class="cinematic-emoji" aria-hidden="true">${emoji}</span>`}
+          ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
+          <div class="cinematic-info">
+            <p class="reveal-count">${escapeHtml(kicker)}</p>
             <h3 class="reveal-name">${m.url
               ? `<a href="${encodeURI(m.url)}" target="_blank" rel="noopener">${escapeHtml(m.title)}</a>`
               : escapeHtml(m.title)}</h3>
-            <div class="meta">${meta.map((x) => `<span>${x}</span>`).join('')}</div>
-            ${m.rating ? `<div class="rating" style="--pct:${Math.min(m.rating * 10, 100)}%"><span class="rating-bar"></span><strong>⭐ ${escapeHtml(m.rating)}</strong></div>` : ''}
+            <div class="cinematic-row">
+              ${rating}
+              <div class="meta">${meta.map((x) => `<span>${x}</span>`).join('')}</div>
+            </div>
+            <div class="tags">${m.genres.slice(0, 3).map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
             ${m.description ? `<p class="desc">${escapeHtml(m.description)}</p>` : ''}
-            <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
-            <div class="actions">
-              <button class="trailer-btn" type="button" data-key="${key}">▶ Watch trailer</button>
+            <div class="cinematic-actions">
+              <button class="trailer-btn cinematic-play" type="button" data-key="${key}">${PLAY_ICON}<span>Watch trailer</span></button>
               ${seenButton(m)}
-          ${favButton(m)}
+              ${favButton(m)}
             </div>
           </div>
         </div>
@@ -595,13 +629,13 @@ function flip(card, i) {
 
 function renderNav() {
   const { index, movies } = reveal;
-  $('#dots').innerHTML = movies.map((_, i) =>
-    `<span class="dot${i === index ? ' active' : ''}${reveal.flipped.has(i) ? ' seen' : ''}"></span>`).join('');
+  // Story bars: done, current (fills up), upcoming.
+  $('#stories').innerHTML = movies.map((_, i) =>
+    `<span class="story${i < index ? ' done' : ''}${i === index ? ' current' : ''}"><i></i></span>`).join('');
   $('#prev').disabled = index <= 0;
   const last = index >= movies.length - 1;
   $('#next').textContent = last ? 'See all 3 ✓' : 'Next →';
-  // On the last card, Start over takes the dots' place so it's reachable before the summary.
-  $('#dots').hidden = last;
+  // On the last card, Start over is reachable before the summary.
   $('#nav-start-over').hidden = !last;
 }
 
@@ -637,6 +671,7 @@ function startReveal(movies) {
   reveal.flipped = new Set();
   $('#summary').hidden = true;
   $('#stage').hidden = false;
+  $('#stories').hidden = false;
   $('#reveal-nav').hidden = false;
   $('#swipe-hint').hidden = false;
   showCard(0);
@@ -645,6 +680,7 @@ function startReveal(movies) {
 function showSummary() {
   $('#stage').innerHTML = '';
   $('#stage').hidden = true;
+  $('#stories').hidden = true;
   $('#reveal-nav').hidden = true;
   $('#swipe-hint').hidden = true;
   setBackdrop(null);
@@ -661,10 +697,17 @@ function prev() { showCard(reveal.index - 1, -1); }
 
 $('#next').addEventListener('click', next);
 $('#prev').addEventListener('click', prev);
+// Tap the card: reveal it; once revealed, tap the left or right third to go back or forward.
+let justSwiped = false;
 $('#stage').addEventListener('click', (e) => {
-  if (e.target.closest('button, a')) return;
+  if (justSwiped || e.target.closest('button, a')) return;
   const card = e.target.closest('.reveal-card');
-  if (card) flip(card, reveal.index);
+  if (!card) return;
+  if (!card.classList.contains('flipped')) return flip(card, reveal.index);
+  const rect = card.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  if (x > 0.7) next();
+  else if (x < 0.3) prev();
 });
 
 // Swipe between cards on touch screens.
@@ -675,7 +718,12 @@ $('#stage').addEventListener('pointerup', (e) => {
   const dx = e.clientX - swipeStart.x;
   const dy = e.clientY - swipeStart.y;
   swipeStart = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? next : prev)();
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    // A swipe also ends in a click; don't treat it as a tap on the card's side too.
+    justSwiped = true;
+    setTimeout(() => { justSwiped = false; }, 350);
+    (dx < 0 ? next : prev)();
+  }
 });
 
 document.addEventListener('keydown', (e) => {
@@ -688,7 +736,7 @@ document.addEventListener('keydown', (e) => {
 function backToPick() {
   latestRequest++; // drop any search still loading
   setBackdrop(null);
-  $('#loading').hidden = true;
+  hideLoading();
   updateFindButton();
   showStep('pick');
 }

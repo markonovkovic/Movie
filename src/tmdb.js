@@ -11,6 +11,7 @@ const { compareTitles } = require('./sort');
 
 const API = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
+const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w1280'; // wide image for the reveal card on wide screens
 const MAX_PAGE = 500; // TMDB never returns pages beyond 500
 
 const GENRE_IDS = {
@@ -41,6 +42,7 @@ function toMovie(m) {
     rating: m.vote_average ? Math.round(m.vote_average * 10) / 10 : null,
     description: m.overview,
     poster: m.poster_path ? IMAGE_BASE + m.poster_path : null,
+    backdrop: m.backdrop_path ? BACKDROP_BASE + m.backdrop_path : null,
     url: `https://www.themoviedb.org/movie/${m.id}`,
     // Only movie details include the length; discover/search results don't.
     ...(m.runtime ? { runtime: m.runtime } : {}),
