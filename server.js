@@ -7,6 +7,7 @@ const path = require('path');
 const { MOVIES, GENRES } = require('./src/movies');
 const { listEmotions, detectEmotion } = require('./src/emotions');
 const { parseGenres } = require('./src/genres');
+const { compareTitles } = require('./src/sort');
 const { recommend, RecommendationError } = require('./src/recommender');
 const { createTmdbClient } = require('./src/tmdb');
 const { createAiMoodDetector } = require('./src/ai-mood');
@@ -70,7 +71,7 @@ function listMovies(query) {
   }
   const sort = query.get('sort') || 'title';
   const sorters = {
-    title: (a, b) => a.title.localeCompare(b.title),
+    title: (a, b) => compareTitles(a.title, b.title),
     year: (a, b) => b.year - a.year,
     rating: (a, b) => b.rating - a.rating,
   };

@@ -49,6 +49,30 @@ test('browse uses discover with genre, sort and page', async () => {
   });
 });
 
+test('A–Z is built once from well-known films, sorted by shown title, and paged locally', async () => {
+  const titles = ['Zootopia', '12 Angry Men', 'Amélie', '#Alive', 'Up', 'Brave'];
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const u = new URL(url);
+    calls.push(u);
+    const page = Number(u.searchParams.get('page'));
+    // 3 pages of 2 films each; Brave appears twice (popularity can shift while collecting).
+    const results = titles.slice((page - 1) * 2, page * 2).map((t, i) => ({ id: t === 'Brave' ? 99 : page * 10 + i, title: t, genre_ids: t === 'Up' ? [16] : [35], vote_average: 7 }));
+    if (page === 3) results.push({ id: 99, title: 'Brave', genre_ids: [35], vote_average: 7 });
+    return { ok: true, status: 200, json: async () => ({ results, total_pages: 900, total_results: 18000 }) };
+  };
+  const tmdb = createTmdbClient('k', { fetchImpl, azMaxPages: 3 });
+  const res = await tmdb.browse({ sort: 'title' });
+  assert.deepStrictEqual(res.movies.map((m) => m.title), ['#Alive', 'Amélie', 'Brave', 'Up', 'Zootopia', '12 Angry Men']);
+  assert.strictEqual(res.total, 6);
+  assert.strictEqual(calls.length, 3, 'collected pages 1-3');
+  assert.ok(calls.every((u) => u.searchParams.get('vote_count.gte') === '1000' && u.searchParams.get('sort_by') === 'popularity.desc'));
+
+  const animation = await tmdb.browse({ sort: 'title', genre: 'Animation' });
+  assert.deepStrictEqual(animation.movies.map((m) => m.title), ['Up']);
+  assert.strictEqual(calls.length, 3, 'the list is reused, not rebuilt');
+});
+
 test('browse with a query uses search and filters by genre locally', async () => {
   const calls = [];
   const tmdb = createTmdbClient('v3key', { fetchImpl: fakeFetch(calls) });

@@ -67,7 +67,8 @@ Connect it to [The Movie Database (TMDB)](https://www.themoviedb.org/) to use **
 3. `npm start`. The console prints `Connected to TMDB…`, and the "All movies" page shows a
    **TMDB · full catalogue** badge, a "Most popular" sort and **Load more** paging.
 
-With TMDB, "All movies" lets you search any title, filter by genre, and sort by popularity, rating, release date or title.
+With TMDB, "All movies" lets you search any title, filter by genre, and sort by popularity, rating, release date or title. A–Z covers the ~5,000 well-known films (1,000+ votes), sorted by the title shown: letters first, numbers last
+(the list is built on the server on first use and refreshed daily).
 Each title links to its TMDB page. If TMDB is unreachable, the app falls back to the built-in list automatically.
 Note: TMDB has no Sport or Biography genre, so those filters only exist in the built-in list.
 
@@ -139,6 +140,7 @@ src/emotions.js      Emotions → genres mapping and free-text emotion detection
 src/recommender.js   Resolves emotions (buttons, text, AI) and builds the recommendation
 src/genres.js        Understands genres in free text for the API ("scary" → Horror, "romcom" → Romance + Comedy)
 src/moods.js         Emotion → TMDB mood keywords (look for / avoid)
+src/sort.js          A–Z order: letters first (accents/leading symbols ignored), numbers last
 src/picker.js        Picks 3 movies (weighted random, covers every emotion, genre variety, no repeats)
 src/tmdb.js          TMDB client (browse, search, recommend, trailers)
 src/ai-mood.js       Optional AI mood detection with Claude

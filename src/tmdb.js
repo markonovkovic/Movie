@@ -7,6 +7,7 @@
 
 const { pickMovies, MIN_RATING } = require('./picker');
 const { moodKeywords } = require('./moods');
+const { compareTitles } = require('./sort');
 
 const API = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
@@ -26,7 +27,6 @@ const BROWSE_SORTS = {
   popularity: { sort_by: 'popularity.desc' },
   rating: { sort_by: 'vote_average.desc', 'vote_count.gte': 1000 },
   year: { sort_by: 'primary_release_date.desc', 'vote_count.gte': 50 },
-  title: { sort_by: 'title.asc', 'vote_count.gte': 200 },
 };
 
 function toMovie(m) {
@@ -55,7 +55,16 @@ const LENGTHS = {
   long: { 'with_runtime.gte': 120 },
 };
 
-function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
+// A–Z can't use TMDB's own title sort: it orders by *original* title (French films under
+// their French names), puts symbols and numbers first, and stops after 500 pages (around
+// "S"). So the server collects the well-known films once, sorts them by the title shown,
+// and keeps the list for a day.
+const AZ_MIN_VOTES = 1000; // about 5,000 films
+const AZ_MAX_AGE = 24 * 60 * 60 * 1000;
+const AZ_CONCURRENCY = 8;
+const PAGE_SIZE = 20;
+
+function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = MAX_PAGE } = {}) {
   // v4 read-access tokens are long JWTs sent as a Bearer header; v3 keys go in the query string.
   const isBearer = apiKey.length > 40;
 
@@ -178,11 +187,55 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   }
 
   // Browse/search the whole catalogue, 20 movies per page.
+  let azList = null; // { builtAt, promise }
+
+  async function buildAzList() {
+    const params = {
+      sort_by: 'popularity.desc', 'vote_count.gte': AZ_MIN_VOTES, include_adult: false,
+      'primary_release_date.lte': new Date().toISOString().slice(0, 10),
+    };
+    const first = await request('/discover/movie', { ...params, page: 1 });
+    const pages = Math.min(first.total_pages || 1, azMaxPages);
+    const results = [...(first.results || [])];
+    for (let start = 2; start <= pages; start += AZ_CONCURRENCY) {
+      const batch = [];
+      for (let p = start; p < start + AZ_CONCURRENCY && p <= pages; p++) {
+        batch.push(request('/discover/movie', { ...params, page: p }).then((d) => d.results || []).catch(() => []));
+      }
+      (await Promise.all(batch)).forEach((list) => results.push(...list));
+    }
+    const byId = new Map(results.map((r) => [r.id, toMovie(r)]));
+    return [...byId.values()].sort((a, b) => compareTitles(a.title, b.title));
+  }
+
+  // Shared by everyone; rebuilt after a day, or on the next request if building failed.
+  function getAzList() {
+    if (!azList || Date.now() - azList.builtAt > AZ_MAX_AGE) {
+      const entry = { builtAt: Date.now() };
+      entry.promise = buildAzList().catch((err) => {
+        if (azList === entry) azList = null;
+        throw err;
+      });
+      azList = entry;
+    }
+    return azList.promise;
+  }
+
   async function browse({ q = '', genre = '', sort = 'popularity', page = 1 } = {}) {
     page = Math.min(Math.max(parseInt(page, 10) || 1, 1), MAX_PAGE);
     const genreId = GENRE_IDS[genre];
     let data;
     let movies;
+    if (!q.trim() && sort === 'title') {
+      const list = (await getAzList()).filter((m) => !genre || m.genres.includes(genre));
+      const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+      return {
+        total: list.length,
+        page,
+        totalPages,
+        movies: list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+      };
+    }
     if (q.trim()) {
       // Search doesn't support genre filters, so filter the page's results ourselves.
       data = await request('/search/movie', { query: q.trim(), page, include_adult: false });
