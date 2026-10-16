@@ -116,19 +116,22 @@
         </div>
 
         <div id="loading" class="loading" hidden>
-          <div class="deck" aria-hidden="true"><span></span><span></span><span></span></div>
-          <p>Picking movies for you…</p>
+          <div class="fan" aria-hidden="true">
+            <span class="fan-card"><i></i></span><span class="fan-card"><i></i></span><span class="fan-card"><i></i></span>
+          </div>
+          <p id="loading-text" class="loading-text">Reading your mood…</p>
+          <div class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></div>
         </div>
 
+        <div id="stories" class="stories" aria-hidden="true" hidden></div>
         <div id="stage" class="stage" aria-live="polite"></div>
 
         <div id="reveal-nav" class="reveal-nav" hidden>
           <button id="prev" class="secondary nav-btn" type="button" aria-label="Previous movie">←</button>
-          <div id="dots" class="dots" aria-hidden="true"></div>
           <button id="nav-start-over" class="secondary nav-start-over" type="button" hidden>🏠 Start over</button>
           <button id="next" class="primary nav-btn" type="button">Next →</button>
         </div>
-        <p id="swipe-hint" class="swipe-hint" hidden>Swipe or use ← → to move between movies</p>
+        <p id="swipe-hint" class="swipe-hint" hidden>Tap the sides of the card, swipe, or use ← → to move between movies</p>
 
         <div id="summary" class="summary" hidden>
           <h2>Your 3 picks</h2>

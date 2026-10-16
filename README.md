@@ -15,9 +15,10 @@ Tell it how you feel and get **3 movies** to watch right now.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
 - Picks aim to **lift the mood** you chose (e.g. sad → warm comedies). The API can also match it instead (`"mode": "match"`).
-- Tap **🎬 Find movies** and the picks are revealed **one by one**: a shuffling-cards animation, then each
-  movie flips over with its poster as a blurred backdrop (sparkles for the 🆕 newest pick). Move with
-  Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side, with **🏠 Start over**
+- Tap **🎬 Find movies** and the picks are revealed **one by one**: fanned glass cards while it searches, then each
+  movie flips over as a **cinematic card**: the poster fills the card (the wide backdrop on wide screens), with the
+  title, a rating ring, genres and buttons over a dark fade, an ambient poster glow behind, and story bars on top
+  (sparkles for the 🆕 newest pick). Move by tapping the sides of the card, Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side, with **🏠 Start over**
   to go back to the first screen with nothing selected.
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.

@@ -45,7 +45,7 @@ test('browse uses discover with genre, sort and page', async () => {
   assert.strictEqual(res.totalPages, 500, 'capped at TMDB max page');
   assert.deepStrictEqual(res.movies[0], {
     id: 550, title: 'Fight Club', year: 1999, genres: ['Drama', 'Thriller'], rating: 8.4,
-    description: 'x', poster: 'https://image.tmdb.org/t/p/w342/a.jpg', url: 'https://www.themoviedb.org/movie/550',
+    description: 'x', poster: 'https://image.tmdb.org/t/p/w342/a.jpg', backdrop: null, url: 'https://www.themoviedb.org/movie/550',
   });
 });
 
