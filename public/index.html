@@ -24,14 +24,16 @@
       <!-- Step 1: choose -->
       <div id="step-pick" class="step">
         <h1>How are you feeling right now?</h1>
-        <p class="sub">Choose up to 3 emotions, or describe your mood, then tap <strong>Find movies</strong>.</p>
+        <p class="sub">Choose up to 3 emotions and/or type what kind of movie you want, then tap <strong>Find movies</strong>.</p>
 
         <div id="emotion-chips" class="chips" aria-label="Emotions" aria-describedby="chip-hint"></div>
         <p id="chip-hint" class="hint"></p>
 
-        <label for="feeling-text" class="field-label">Or describe it in your own words <span class="optional">(optional)</span></label>
-        <input id="feeling-text" class="text-input" type="text" maxlength="300" autocomplete="off"
-               placeholder="e.g. &quot;tired after work but kind of lonely&quot;">
+        <label for="genre-text" class="field-label">What kind of movie? <span class="optional">(optional genre)</span></label>
+        <input id="genre-text" class="text-input" type="text" maxlength="200" autocomplete="off"
+               aria-describedby="genre-preview"
+               placeholder="e.g. &quot;sci-fi&quot;, &quot;something scary&quot;, &quot;funny animated&quot;, &quot;romcom&quot;">
+        <p id="genre-preview" class="genre-preview" aria-live="polite"></p>
 
         <div class="mode" role="radiogroup" aria-label="Recommendation mode">
           <label class="mode-option"><input type="radio" name="mode" value="lift" checked><span>✨ Change my mood</span></label>

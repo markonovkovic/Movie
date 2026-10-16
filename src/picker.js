@@ -23,8 +23,9 @@ function randomTop(scored, random, n = NEWEST_CHOICES) {
 
 const isGoodEnough = (m, minRating) => typeof m.rating === 'number' && m.rating >= minRating;
 
-// Scores movies against the emotions' genre sets; movies fitting none are dropped.
-function score(movies, sets, random) {
+// Scores movies against the emotions' genre sets and any required genres.
+// Movies fitting no emotion are dropped, unless the user asked for specific genres.
+function score(movies, sets, random, required = new Set()) {
   const wanted = new Set(sets.flatMap((s) => [...s]));
   return movies
     .map((m) => {
@@ -32,11 +33,13 @@ function score(movies, sets, random) {
       const fitCount = fits.filter(Boolean).length;
       // Genre matches counted per emotion, so a romantic comedy beats a plain comedy for "romantic + scared".
       const fitScore = sets.reduce((sum, set) => sum + m.genres.filter((g) => set.has(g)).length, 0);
+      // A movie matching more of the requested genres (e.g. both action and comedy) ranks higher.
+      const requiredScore = m.genres.filter((g) => required.has(g)).length;
       // Weighted random: fitting more emotions, more genres and a higher rating all raise the odds.
-      const weight = fitCount * 3 + fitScore + m.rating / 2 + random() * 4;
+      const weight = fitCount * 3 + fitScore + requiredScore * 2 + m.rating / 2 + random() * 4;
       return { movie: m, fits, fitCount, weight, primary: m.genres.find((g) => wanted.has(g)) };
     })
-    .filter((c) => c.fitCount > 0)
+    .filter((c) => c.fitCount > 0 || required.size > 0)
     .sort((a, b) => b.weight - a.weight);
 }
 
@@ -44,7 +47,8 @@ function score(movies, sets, random) {
  * Picks `count` movies rated at least `minRating`.
  *
  * `genreSets` has one genre list per emotion, e.g. [['Comedy', 'Family'], ['Romance']]
- * for two emotions (a single flat list is treated as one emotion). Movies that fit
+ * for two emotions (a single flat list is treated as one emotion; it may be empty).
+ * `required` genres, when given, are a hard rule: every pick has at least one of them. Movies that fit
  * more of the emotions rank higher, every emotion gets at least one fitting movie when
  * possible, and randomness keeps repeated requests fresh.
  *
@@ -53,13 +57,20 @@ function score(movies, sets, random) {
  * from the most recent fitting movies in `catalogue`.
  */
 function pickMovies(catalogue, genreSets, {
-  count = DEFAULT_COUNT, exclude = [], random = Math.random, minRating = MIN_RATING, newestPool = [],
+  count = DEFAULT_COUNT, exclude = [], random = Math.random, minRating = MIN_RATING, newestPool = [], required = [],
 } = {}) {
   const sets = (typeof genreSets[0] === 'string' ? [genreSets] : genreSets).map((s) => new Set(s));
+  const requiredSet = new Set(required);
   const excluded = new Set(exclude.map(Number));
-  const usable = (list) => list.filter((m) => !excluded.has(m.id) && isGoodEnough(m, minRating));
+  // Requested genres are a hard rule. With several (e.g. "romcom"), movies having all of them
+  // are used when there are enough; otherwise any one of them is enough.
+  const hasAll = (m) => required.every((g) => m.genres.includes(g));
+  const hasAny = (m) => !requiredSet.size || m.genres.some((g) => requiredSet.has(g));
+  const usable = (list, match = hasAny) => list.filter((m) => !excluded.has(m.id) && isGoodEnough(m, minRating) && match(m));
+  const strict = required.length > 1 && usable(catalogue, hasAll).length >= count;
+  const match = strict ? hasAll : hasAny;
 
-  const candidates = score(usable(catalogue), sets, random);
+  const candidates = score(usable(catalogue, match), sets, random, requiredSet);
   const picks = [];
   const pickedIds = new Set();
   const take = (c) => { picks.push(c.movie); pickedIds.add(c.movie.id); };
@@ -67,7 +78,7 @@ function pickMovies(catalogue, genreSets, {
 
   // 1. The newest pick: one of the best fits among recent releases, chosen at random
   //    so the same film doesn't come up every time.
-  let newest = randomTop(score(usable(newestPool), sets, random), random);
+  let newest = randomTop(score(usable(newestPool, match), sets, random, requiredSet), random);
   if (!newest && candidates.length) {
     const latestYear = Math.max(...candidates.map((c) => c.movie.year || 0));
     newest = randomTop(candidates.filter((c) => (c.movie.year || 0) >= latestYear - 1), random);
@@ -102,7 +113,7 @@ function pickMovies(catalogue, genreSets, {
 
   // Not enough unseen movies left: top up with ones shown before rather than return fewer.
   if (picks.length < count && excluded.size) {
-    for (const m of pickMovies(catalogue, genreSets, { count, random, minRating, newestPool })) {
+    for (const m of pickMovies(catalogue, genreSets, { count, random, minRating, newestPool, required })) {
       if (picks.length === count) break;
       if (!pickedIds.has(m.id)) { picks.push(m); pickedIds.add(m.id); }
     }

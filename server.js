@@ -6,6 +6,7 @@ const path = require('path');
 
 const { MOVIES, GENRES } = require('./src/movies');
 const { listEmotions, detectEmotion } = require('./src/emotions');
+const { parseGenres } = require('./src/genres');
 const { recommend, RecommendationError } = require('./src/recommender');
 const { createTmdbClient } = require('./src/tmdb');
 const { createAiMoodDetector } = require('./src/ai-mood');
@@ -165,6 +166,9 @@ function createServer({ tmdb, detectMood } = {}) {
         }
         return sendJson(res, 200, trailer ? { ...trailer, searchUrl } : { youtubeKey: null, searchUrl });
       }
+      if (pathname === '/api/parse-genres' && req.method === 'GET') {
+        return sendJson(res, 200, parseGenres(searchParams.get('text') || ''));
+      }
       if (pathname === '/api/detect' && req.method === 'POST') {
         const { text } = await readJson(req);
         return sendJson(res, 200, detectEmotion(text || ''));
@@ -175,6 +179,8 @@ function createServer({ tmdb, detectMood } = {}) {
           : {
             emotion: searchParams.get('emotion') || undefined,
             emotions: searchParams.get('emotions') || undefined,
+            genre: searchParams.get('genre') || undefined,
+            genres: searchParams.get('genres') || undefined,
             text: searchParams.get('text') || undefined,
             mode: searchParams.get('mode') || undefined,
             exclude: (searchParams.get('exclude') || '').split(',').filter(Boolean),

@@ -18,7 +18,7 @@ const GENRE_STYLE = {
 const MAX_EMOTIONS = 3;
 const state = {
   selected: [],   // selected emotion keys, in the order they were picked
-  text: '',       // free-text description still to be analysed
+  genre: '',      // typed genre(s), e.g. "funny sci-fi"
   seen: [],       // ids already recommended for this mood, for "show me 3 others"
 };
 
@@ -137,7 +137,7 @@ function renderChips(warning = '') {
 
 // "Find movies" only appears once there's something to search for.
 function updateFindButton() {
-  $('#find').hidden = !state.selected.length && !$('#feeling-text').value.trim();
+  $('#find').hidden = !state.selected.length && !$('#genre-text').value.trim();
   $('#find').disabled = false;
 }
 
@@ -168,15 +168,44 @@ $('#emotion-chips').addEventListener('click', (e) => {
   renderChips();
 });
 
-$('#feeling-text').addEventListener('input', updateFindButton);
-$('#feeling-text').addEventListener('keydown', (e) => {
+// Live preview of the genres understood from what's typed.
+let genreTimer;
+let genrePreviewRequest = 0;
+function genreChip(g) {
+  const [emoji] = GENRE_STYLE[g] || ['🎬'];
+  return `<span class="genre-chip">${emoji} ${escapeHtml(g)}</span>`;
+}
+async function previewGenres() {
+  const text = $('#genre-text').value.trim();
+  const id = ++genrePreviewRequest;
+  const el = $('#genre-preview');
+  if (!text) {
+    el.innerHTML = '';
+    el.classList.remove('warn');
+    return;
+  }
+  try {
+    const { genres } = await api(`/api/parse-genres?text=${encodeURIComponent(text)}`);
+    if (id !== genrePreviewRequest) return;
+    el.classList.toggle('warn', !genres.length);
+    el.innerHTML = genres.length
+      ? `Looking for: ${genres.map(genreChip).join('')}`
+      : 'Hmm, I don\'t know that genre. Try comedy, sci-fi, horror, romcom, animated…';
+  } catch { /* the preview is only a hint */ }
+}
+$('#genre-text').addEventListener('input', () => {
+  updateFindButton();
+  clearTimeout(genreTimer);
+  genreTimer = setTimeout(previewGenres, 250);
+});
+$('#genre-text').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !$('#find').hidden && !$('#find').disabled) find();
 });
 $('#find').addEventListener('click', () => find());
 
 function find() {
-  state.text = $('#feeling-text').value.trim();
-  if (!state.text && !state.selected.length) return;
+  state.genre = $('#genre-text').value.trim();
+  if (!state.genre && !state.selected.length) return;
   renderChips();
   getRecommendations({ fresh: true });
 }
@@ -201,15 +230,16 @@ async function getRecommendations({ fresh }) {
   if (fresh) state.seen = [];
   const mode = document.querySelector('input[name="mode"]:checked').value;
   const body = { mode, exclude: state.seen, emotions: state.selected };
-  if (state.text) body.text = state.text;
+  if (state.genre) body.genre = state.genre;
 
   setStatus('');
   $('#find').disabled = true;
   $('#shuffle').disabled = true;
   showStep('reveal');
-  // Until the results arrive, show the moods as picked (typed text is analysed by the server).
-  $('#reveal-title').textContent = state.selected
-    .map((k) => $(`.chip[data-emotion="${k}"]`)?.textContent.trim()).filter(Boolean).join(' + ') || 'Reading your mood…';
+  // Until the results arrive, show what was picked.
+  $('#reveal-title').textContent = [
+    ...state.selected.map((k) => $(`.chip[data-emotion="${k}"]`)?.textContent.trim()).filter(Boolean),
+  ].join(' + ') || 'Finding your movies…';
   $('#reveal-message').textContent = '';
   $('#stage').innerHTML = '';
   $('#stage').hidden = true;
@@ -231,18 +261,11 @@ async function getRecommendations({ fresh }) {
     if (requestId !== latestRequest) return;
 
     state.seen.push(...data.movies.map((m) => m.id));
-    // Moods found in typed text become selected chips, so "show me 3 others" needn't re-analyse it.
-    if (body.text) {
-      state.selected = data.emotions.map((e) => e.key);
-      state.text = '';
-      renderChips();
-    }
 
-    const via = data.detectedFrom === 'text' && data.matchedWords?.length
-      ? ` (from “${data.matchedWords.join('”, “')}”)` : '';
-    $('#reveal-title').textContent = `${data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ')}${via}`;
-    const reason = data.detectedFrom === 'ai' && data.reason ? `✨ ${data.reason} ` : '';
-    $('#reveal-message').textContent = `${reason}${data.message}`;
+    const moods = data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ');
+    const genres = (data.requestedGenres || []).map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + ');
+    $('#reveal-title').textContent = [moods, genres].filter(Boolean).join('  ·  ');
+    $('#reveal-message').textContent = data.message;
     $('#loading').hidden = true;
     startReveal(data.movies);
   } catch (err) {
