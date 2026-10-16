@@ -108,7 +108,7 @@ const MAX_EMOTIONS = 3;
 const state = {
   selected: [],   // selected emotion keys, in the order they were picked
   genres: [],     // the selected genre (at most one); empty means any genre
-  seen: [],       // ids already recommended for this mood, for "show me 3 others"
+  shown: [],      // ids already recommended for this mood, for "show me 3 others"
 };
 
 // Every movie rendered on the page, so card buttons can find their movie.
@@ -142,11 +142,12 @@ function favButton(m) {
 const isFavourite = (m) => favourites.some((f) => movieKey(f) === movieKey(m));
 function toggleFavourite(m) {
   // "Newest" describes a recommendation, not the movie, so it isn't saved.
-  const { isNewest, ...saved } = m;
+  const { isNewest, moodMatch, ...saved } = m;
   favourites = isFavourite(m) ? favourites.filter((f) => movieKey(f) !== movieKey(m)) : [saved, ...favourites];
   saveFavourites();
   document.querySelectorAll(`.fav-btn[data-key="${CSS.escape(movieKey(m))}"]`).forEach((b) => setFavButton(b, isFavourite(m)));
   if (!$('#view-favourites').hidden) renderFavourites();
+  toast(isFavourite(m) ? `Saved “${m.title}”. Favourites aren't suggested again.` : `Removed “${m.title}” from favourites.`);
 }
 function setFavButton(btn, on) {
   btn.classList.toggle('on', on);
@@ -165,9 +166,98 @@ function updateFavCount() {
   badge.hidden = !favourites.length;
   $('#fav-tab').setAttribute('aria-label', `Favourites${favourites.length ? ` (${favourites.length})` : ''}`);
 }
+/* ---------- Seen it (saved in this browser): never suggested again ---------- */
+
+const SEEN_STORAGE = 'moviepicker:seen';
+let seenList = (() => {
+  try {
+    const list = JSON.parse(localStorage.getItem(SEEN_STORAGE) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+})();
+function saveSeen() {
+  try { localStorage.setItem(SEEN_STORAGE, JSON.stringify(seenList)); } catch { /* private mode etc. */ }
+}
+const EYE_ICON = '<svg class="eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>';
+const isSeen = (m) => seenList.some((f) => movieKey(f) === movieKey(m));
+function seenButton(m) {
+  const on = isSeen(m);
+  return `<button class="seen-btn${on ? ' on' : ''}" type="button" data-key="${escapeHtml(movieKey(m))}"
+            aria-pressed="${on}" aria-label="${on ? 'Seen it. Tap to undo' : 'Mark as seen'}" title="${on ? 'Seen it' : 'Seen it?'}">${EYE_ICON}</button>`;
+}
+function toggleSeen(m) {
+  const { isNewest, moodMatch, ...saved } = m;
+  const nowSeen = !isSeen(m);
+  seenList = nowSeen ? [saved, ...seenList] : seenList.filter((f) => movieKey(f) !== movieKey(m));
+  saveSeen();
+  document.querySelectorAll(`.seen-btn[data-key="${CSS.escape(movieKey(m))}"]`).forEach((b) => {
+    b.classList.toggle('on', nowSeen);
+    b.setAttribute('aria-pressed', String(nowSeen));
+    b.setAttribute('aria-label', nowSeen ? 'Seen it. Tap to undo' : 'Mark as seen');
+    b.title = nowSeen ? 'Seen it' : 'Seen it?';
+  });
+  if (!$('#view-favourites').hidden) renderFavourites();
+  toast(nowSeen ? `Marked “${m.title}” as seen. It won't be suggested again.` : `“${m.title}” can be suggested again.`);
+}
+
+// Seen and favourite movies are never suggested. IDs only mean something within one
+// catalogue (TMDB or the built-in list), so only those from the active one are sent.
+let catalogueSource = null;
+const configReady = api('/api/config')
+  .then((config) => { catalogueSource = config.source; return config; })
+  .catch(() => ({ source: 'local' }));
+function hiddenIds() {
+  const prefix = `${catalogueSource || 'tmdb'}:`;
+  return [...new Set([...favourites, ...seenList].map(movieKey))]
+    .filter((key) => key.startsWith(prefix)).map((key) => Number(key.slice(prefix.length)));
+}
+
+/* ---------- Your lists: favourites and seen ---------- */
+
+let activeList = 'favourites';
 function renderFavourites() {
   $('#favourites-list').innerHTML = favourites.map(movieCard).join('');
   $('#favourites-empty').hidden = favourites.length > 0;
+  $('#seen-list').innerHTML = seenList.map(movieCard).join('');
+  $('#seen-empty').hidden = seenList.length > 0;
+  $('#clear-seen').hidden = !seenList.length;
+  $('#fav-list-count').textContent = favourites.length || '';
+  $('#seen-list-count').textContent = seenList.length || '';
+  document.querySelectorAll('.list-tab').forEach((t) => {
+    const on = t.dataset.list === activeList;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+  });
+  $('#list-favourites').hidden = activeList !== 'favourites';
+  $('#list-seen').hidden = activeList !== 'seen';
+}
+document.querySelectorAll('.list-tab').forEach((t) => t.addEventListener('click', () => {
+  activeList = t.dataset.list;
+  renderFavourites();
+}));
+$('#clear-seen').addEventListener('click', () => {
+  if (!confirm(`Clear your Seen list (${seenList.length} movie${seenList.length === 1 ? '' : 's'})? They can be suggested again.`)) return;
+  seenList = [];
+  saveSeen();
+  document.querySelectorAll('.seen-btn.on').forEach((b) => b.classList.remove('on'));
+  renderFavourites();
+  toast('Seen list cleared.');
+});
+
+/* ---------- Toast: short confirmation messages ---------- */
+
+let toastTimer;
+function toast(message) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.hidden = false;
+  el.classList.remove('show');
+  void el.offsetWidth; // restart the animation
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2800);
 }
 
 function escapeHtml(s) {
@@ -209,6 +299,7 @@ function movieCard(m) {
         <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
         <div class="actions">
           <button class="trailer-btn" type="button" data-key="${key}">▶ Trailer</button>
+          ${seenButton(m)}
           ${favButton(m)}
         </div>
       </div>
@@ -335,9 +426,10 @@ function preload(url, timeout = 2500) {
 
 async function getRecommendations({ fresh }) {
   const requestId = ++latestRequest;
-  if (fresh) state.seen = [];
+  if (fresh) state.shown = [];
   // The server's default "lift" mode is used: movies that help change the chosen mood.
-  const body = { exclude: state.seen, emotions: state.selected };
+  await configReady;
+  const body = { exclude: state.shown, hide: hiddenIds(), emotions: state.selected };
   if (state.genres.length) body.genres = state.genres;
 
   setStatus('');
@@ -369,7 +461,7 @@ async function getRecommendations({ fresh }) {
     await Promise.all(data.movies.map((m) => preload(m.poster)));
     if (requestId !== latestRequest) return;
 
-    state.seen.push(...data.movies.map((m) => m.id));
+    state.shown.push(...data.movies.map((m) => m.id));
 
     const moods = data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ');
     const genres = (data.requestedGenres || []).map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + ');
@@ -426,7 +518,8 @@ function revealCard(m, i, total) {
             <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
             <div class="actions">
               <button class="trailer-btn" type="button" data-key="${key}">▶ Watch trailer</button>
-              ${favButton(m)}
+              ${seenButton(m)}
+          ${favButton(m)}
             </div>
           </div>
         </div>
@@ -573,7 +666,7 @@ $('#change-mood').addEventListener('click', backToPick);
 function startOver() {
   state.selected = [];
   state.genres = [];
-  state.seen = [];
+  state.shown = [];
   setStatus('');
   renderChips();
   renderGenreChips();
@@ -614,7 +707,7 @@ async function loadMovies({ append = false } = {}) {
 }
 
 async function loadConfig() {
-  const { source } = await api('/api/config');
+  const { source } = await configReady;
   $('#source-badge').textContent = source === 'tmdb' ? 'TMDB · full catalogue' : 'Built-in list';
   if (source === 'tmdb') {
     $('#sort').insertAdjacentHTML('afterbegin', '<option value="popularity">Most popular</option>');
@@ -665,11 +758,12 @@ dialog.addEventListener('close', closeTrailer);
 dialog.addEventListener('click', (e) => { if (e.target === dialog) closeTrailer(); });
 
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.trailer-btn, .fav-btn');
+  const btn = e.target.closest('.trailer-btn, .fav-btn, .seen-btn');
   if (!btn) return;
   const m = rendered.get(btn.dataset.key);
   if (!m) return;
   if (btn.classList.contains('fav-btn')) toggleFavourite(m);
+  else if (btn.classList.contains('seen-btn')) toggleSeen(m);
   else openTrailer(m, btn);
 });
 

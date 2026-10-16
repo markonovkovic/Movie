@@ -21,7 +21,7 @@ const MIME = {
   '.png': 'image/png',
   '.webmanifest': 'application/manifest+json',
 };
-const MAX_BODY = 10 * 1024;
+const MAX_BODY = 64 * 1024; // room for long seen-it / favourites lists
 
 // Minimal .env loader so TMDB_API_KEY can live in a file instead of the shell.
 function loadEnvFile(file = path.join(__dirname, '.env')) {
@@ -189,6 +189,7 @@ function createServer({ tmdb, detectMood } = {}) {
             text: searchParams.get('text') || undefined,
             mode: searchParams.get('mode') || undefined,
             exclude: (searchParams.get('exclude') || '').split(',').filter(Boolean),
+            hide: (searchParams.get('hide') || '').split(',').filter(Boolean),
           };
         return sendJson(res, 200, await recommend(input, { source, detectMood }));
       }

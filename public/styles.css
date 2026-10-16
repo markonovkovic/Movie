@@ -390,6 +390,38 @@ button:disabled { opacity: .55; cursor: wait; }
 .trailer-btn { flex: 1; font-weight: 600; }
 .trailer-btn:active, .fav-btn:active { transform: scale(.96); }
 .fav-btn { display: grid; place-items: center; width: 44px; padding: 0; color: var(--muted); }
+.seen-btn {
+  display: grid; place-items: center; width: 44px; padding: 0; color: var(--muted);
+  border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; cursor: pointer;
+  transition: border-color .2s, background .2s, color .2s, transform .15s;
+}
+.seen-btn:active { transform: scale(.96); }
+.seen-btn.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.eye { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.seen-btn.on .eye circle { fill: currentColor; }
+
+/* Your lists: Favourites | Seen */
+.list-switch { display: inline-flex; gap: 4px; margin: 4px 0 18px; padding: 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+.list-tab {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 600; font-size: .92rem; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+}
+.list-tab .heart, .list-tab .eye { width: 17px; height: 17px; }
+.list-tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.list-count:not(:empty) { font-size: .75rem; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.link-inline { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+/* Toast */
+.toast {
+  /* Top of the screen, so it never covers the buttons pinned to the bottom on phones. */
+  position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top)); z-index: 50; transform: translateX(-50%);
+  max-width: min(92vw, 460px); padding: 12px 18px; border-radius: 14px;
+  background: var(--text); color: var(--bg); font-size: .9rem; font-weight: 500; text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.toast.show { animation: toast-in .3s ease both, toast-out .3s ease 2.5s forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -12px); } }
+@keyframes toast-out { to { opacity: 0; transform: translate(-50%, -12px); } }
 .fav-btn.on { color: #fff; background: var(--grad); border-color: transparent; box-shadow: 0 6px 16px rgb(192 38 211 / .3); }
 
 /* Heart icon: an outline that fills in when saved. */
@@ -460,6 +492,7 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
   .trailer-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
   .fav-btn:hover { border-color: var(--accent-2); color: var(--accent-2); }
   .fav-btn.on:hover { border-color: transparent; color: #fff; }
+  .seen-btn:hover { border-color: var(--accent); color: var(--accent); }
 }
 
 /* ----- Phones ----- */

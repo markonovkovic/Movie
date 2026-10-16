@@ -186,3 +186,21 @@ test('a genre alone is enough; an unknown genre is a clear error', async () => {
   const listed = await recommend({ genres: 'comedy,HORROR' });
   assert.deepStrictEqual(listed.requestedGenres, ['Comedy', 'Horror']);
 });
+
+test('hidden movies (seen it, favourites) are never picked, even when topping up', () => {
+  const catalogue = [1, 2, 3, 4, 5].map((id) => ({ id, title: `Comedy ${id}`, genres: ['Comedy'], rating: 7, year: 2000 + id }));
+  for (let i = 0; i < 20; i++) {
+    const picks = pickMovies(catalogue, ['Comedy'], { count: 3, hide: [1, 2], exclude: [3, 4, 5] });
+    assert.ok(picks.every((m) => ![1, 2].includes(m.id)), 'hidden never come back');
+    assert.strictEqual(picks.length, 3, 'shown-before ones top up the picks');
+  }
+});
+
+test('recommend passes hidden ids to the picker and the external source', async () => {
+  const hiddenIds = MOVIES.filter((m) => m.genres.includes('Western')).map((m) => m.id);
+  const res = await recommend({ genres: ['Western'], hide: hiddenIds.slice(0, 2) });
+  assert.ok(res.movies.every((m) => !hiddenIds.slice(0, 2).includes(m.id)));
+  let received;
+  await recommend({ emotions: ['happy'], hide: [42] }, { source: async (sets, opts) => { received = opts.hide; return []; } });
+  assert.deepStrictEqual(received, [42]);
+});

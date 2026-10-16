@@ -20,7 +20,8 @@ Tell it how you feel and get **3 movies** to watch right now.
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
 - **Light / dark theme**: the header toggle switches between Auto (follows the device), Light and Dark; the choice is remembered on that device.
-- **♡ Favourites**: save movies to a watchlist (stored in your browser, on that device).
+- **♡ Favourites** and **👁 Seen it**: save movies you like, mark movies you've watched. Both lists are stored in your
+  browser (per device), shown under *Your lists*, and **never suggested again**.
 - **AI mood detection** (optional): with an Anthropic API key, Claude understands any description
   ("my boss yelled at me and I just want to hide under a blanket"), slang, emoji and other languages.
 - Browse **All movies**: search by title, director or year; filter by genre; sort by rating or year.
@@ -97,7 +98,7 @@ On the free plan the app sleeps after ~15 minutes without visitors, so the first
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `POST` | `/api/recommend` | Body: `{ "emotions": ["sad", "loved"] }` (0–3 emotions) and/or `{ "genre": "funny sci-fi" }` (or `"genres": ["Comedy"]`), plus optional `"mode": "lift" \| "match"` and `"exclude": [ids]`. Returns 3 movies. `"text": "I feel lonely"` (mood from text) and `"emotion": "sad"` still work. |
+| `POST` | `/api/recommend` | Body: `{ "emotions": ["sad", "loved"] }` (0–3 emotions) and/or `{ "genre": "funny sci-fi" }` (or `"genres": ["Comedy"]`), plus optional `"mode": "lift" \| "match"`, `"exclude": [ids]` (shown before; skipped when possible) and `"hide": [ids]` (never picked). Returns 3 movies. `"text": "I feel lonely"` (mood from text) and `"emotion": "sad"` still work. |
 | `GET` | `/api/parse-genres?text=funny aliens` | The genres understood from text: `{ "genres": ["Comedy", "Sci-Fi"], "matched": [...] }`. |
 | `GET` | `/api/recommend?emotions=sad,loved&mode=match` | Same as above, using query params (`text`, `exclude=1,2,3` also supported). |
 | `GET` | `/api/emotions` | All emotions with their genre mappings. |
