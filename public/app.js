@@ -16,9 +16,10 @@ const GENRE_STYLE = {
 };
 
 const MAX_EMOTIONS = 3;
+const MAX_GENRES = 3;
 const state = {
   selected: [],   // selected emotion keys, in the order they were picked
-  genre: '',      // typed genre(s), e.g. "funny sci-fi"
+  genres: [],     // selected genres; empty means any genre
   seen: [],       // ids already recommended for this mood, for "show me 3 others"
 };
 
@@ -122,7 +123,7 @@ async function loadEmotions() {
 }
 
 function renderChips(warning = '') {
-  document.querySelectorAll('.chip').forEach((c) => {
+  document.querySelectorAll('#emotion-chips .chip').forEach((c) => {
     const on = state.selected.includes(c.dataset.emotion);
     c.classList.toggle('selected', on);
     c.setAttribute('aria-pressed', String(on));
@@ -137,7 +138,7 @@ function renderChips(warning = '') {
 
 // "Find movies" only appears once there's something to search for.
 function updateFindButton() {
-  $('#find').hidden = !state.selected.length && !$('#genre-text').value.trim();
+  $('#find').hidden = !state.selected.length && !state.genres.length;
   $('#find').disabled = false;
 }
 
@@ -168,44 +169,51 @@ $('#emotion-chips').addEventListener('click', (e) => {
   renderChips();
 });
 
-// Live preview of the genres understood from what's typed.
-let genreTimer;
-let genrePreviewRequest = 0;
-function genreChip(g) {
-  const [emoji] = GENRE_STYLE[g] || ['🎬'];
-  return `<span class="genre-chip">${emoji} ${escapeHtml(g)}</span>`;
+/* Genre options: "Any genre" or up to 3 specific genres. */
+async function loadGenreChips() {
+  const { genres } = await api('/api/genres');
+  $('#genre-chips').innerHTML = [
+    '<button class="chip genre-opt" data-genre="" type="button" aria-pressed="true"><span class="emoji">🎲</span>Any genre</button>',
+    ...genres.map((g) => `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`),
+  ].join('');
+  renderGenreChips();
 }
-async function previewGenres() {
-  const text = $('#genre-text').value.trim();
-  const id = ++genrePreviewRequest;
-  const el = $('#genre-preview');
-  if (!text) {
-    el.innerHTML = '';
-    el.classList.remove('warn');
-    return;
-  }
-  try {
-    const { genres } = await api(`/api/parse-genres?text=${encodeURIComponent(text)}`);
-    if (id !== genrePreviewRequest) return;
-    el.classList.toggle('warn', !genres.length);
-    el.innerHTML = genres.length
-      ? `Looking for: ${genres.map(genreChip).join('')}`
-      : 'Hmm, I don\'t know that genre. Try comedy, sci-fi, horror, romcom, animated…';
-  } catch { /* the preview is only a hint */ }
-}
-$('#genre-text').addEventListener('input', () => {
+
+function renderGenreChips(warning = '') {
+  document.querySelectorAll('.genre-opt').forEach((c) => {
+    const g = c.dataset.genre;
+    const on = g ? state.genres.includes(g) : !state.genres.length;
+    c.classList.toggle('selected', on);
+    c.setAttribute('aria-pressed', String(on));
+  });
+  $('#genre-hint').classList.toggle('warn', Boolean(warning));
+  $('#genre-hint').textContent = warning || (state.genres.length
+    ? `All picks will be ${state.genres.join(' / ')}${state.genres.length > 1 ? ', with movies that have all of them first' : ''}.`
+    : '');
   updateFindButton();
-  clearTimeout(genreTimer);
-  genreTimer = setTimeout(previewGenres, 250);
+}
+
+$('#genre-chips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.genre-opt');
+  if (!chip) return;
+  const g = chip.dataset.genre;
+  if (!g) {
+    state.genres = [];
+  } else if (state.genres.includes(g)) {
+    state.genres = state.genres.filter((x) => x !== g);
+  } else if (state.genres.length >= MAX_GENRES) {
+    return renderGenreChips(`You can pick up to ${MAX_GENRES} genres. Tap a selected one to remove it first.`);
+  } else {
+    state.genres = [...state.genres, g];
+  }
+  setStatus('');
+  renderGenreChips();
 });
-$('#genre-text').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !$('#find').hidden && !$('#find').disabled) find();
-});
+
 $('#find').addEventListener('click', () => find());
 
 function find() {
-  state.genre = $('#genre-text').value.trim();
-  if (!state.genre && !state.selected.length) return;
+  if (!state.genres.length && !state.selected.length) return;
   renderChips();
   getRecommendations({ fresh: true });
 }
@@ -230,7 +238,7 @@ async function getRecommendations({ fresh }) {
   if (fresh) state.seen = [];
   const mode = document.querySelector('input[name="mode"]:checked').value;
   const body = { mode, exclude: state.seen, emotions: state.selected };
-  if (state.genre) body.genre = state.genre;
+  if (state.genres.length) body.genres = state.genres;
 
   setStatus('');
   $('#find').disabled = true;
@@ -238,8 +246,9 @@ async function getRecommendations({ fresh }) {
   showStep('reveal');
   // Until the results arrive, show what was picked.
   $('#reveal-title').textContent = [
-    ...state.selected.map((k) => $(`.chip[data-emotion="${k}"]`)?.textContent.trim()).filter(Boolean),
-  ].join(' + ') || 'Finding your movies…';
+    state.selected.map((k) => $(`.chip[data-emotion="${k}"]`)?.textContent.trim()).filter(Boolean).join(' + '),
+    state.genres.map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + '),
+  ].filter(Boolean).join('  ·  ') || 'Finding your movies…';
   $('#reveal-message').textContent = '';
   $('#stage').innerHTML = '';
   $('#stage').hidden = true;
@@ -572,3 +581,4 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 
 updateFavCount();
 loadEmotions().catch((err) => setStatus(err.message, true));
+loadGenreChips().catch(() => { $('#genre-chips').hidden = true; });

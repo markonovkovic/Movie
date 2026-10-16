@@ -4,10 +4,9 @@ Tell it how you feel and get **3 movies** to watch right now.
 
 - **Pick one or more emotions** (up to 3, e.g. Sad + Romantic). Movies that fit all of them rank highest,
   and each emotion is represented in the 3 picks.
-- **Type what kind of movie you want** (optional): "sci-fi", "something scary", "funny animated", "romcom",
-  "true story about boxing"… Everyday words are understood (`src/genres.js`) and shown as you type.
-  Typed genres are a firm rule (all 3 picks are in them); the emotions then decide which ones fit your mood best,
-  e.g. Happy + "scary" favours horror-comedies. A genre on its own works too.
+- **Pick a genre** (optional, up to 3; "Any genre" by default). Chosen genres are a firm rule: every pick is in
+  them, and with several (e.g. Romance + Comedy) movies having all of them come first. The emotions then decide
+  which ones fit your mood best, e.g. Happy + Horror favours horror-comedies. A genre on its own works too.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
 - Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
@@ -118,7 +117,7 @@ server.js            HTTP server, REST API and static file serving
 src/movies.js        Built-in movie catalogue
 src/emotions.js      Emotions → genres mapping and free-text emotion detection
 src/recommender.js   Resolves emotions (buttons, text, AI) and builds the recommendation
-src/genres.js        Understands typed genres ("scary" → Horror, "romcom" → Romance + Comedy)
+src/genres.js        Understands genres in free text for the API ("scary" → Horror, "romcom" → Romance + Comedy)
 src/picker.js        Picks 3 movies (weighted random, covers every emotion, genre variety, no repeats)
 src/tmdb.js          TMDB client (browse, search, recommend, trailers)
 src/ai-mood.js       Optional AI mood detection with Claude
