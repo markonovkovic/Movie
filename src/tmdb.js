@@ -6,6 +6,7 @@
 // Accepts either a v3 "API Key" or a v4 "API Read Access Token".
 
 const { pickMovies, MIN_RATING } = require('./picker');
+const { moodKeywords } = require('./moods');
 
 const API = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
@@ -64,7 +65,9 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
   // Source for recommend(): popular movies rated MIN_RATING+ for one or more emotions,
   // plus one recent release. `genreSets` has one genre list per emotion (may be empty).
   // `required` genres (typed by the user) limit the search to those genres; emotions then rank the results.
-  async function recommendSource(genreSets, { count, exclude = [], random = Math.random, now = new Date(), required = [] }) {
+  async function recommendSource(genreSets, {
+    count, exclude = [], random = Math.random, now = new Date(), required = [], emotions = [], mode = 'lift',
+  }) {
     const toIds = (genres) => [...new Set(genres.map((g) => GENRE_IDS[g]).filter(Boolean))];
     // TMDB has no Sport or Biography genre: an empty result lets the built-in list handle those.
     const ids = required.length ? toIds(required) : toIds(genreSets.flat());
@@ -73,15 +76,25 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
     const all = ids.join(','); // "," = all of these genres
     const today = now.toISOString().slice(0, 10);
     const yearAgo = new Date(now.getTime() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const recentDates = { 'primary_release_date.gte': yearAgo, 'primary_release_date.lte': today };
 
-    // A random page keeps picks fresh; narrow searches may have fewer pages, so retry page 1.
-    const discover = async (withGenres, params, maxPage) => {
+    // Mood keywords (e.g. "hopeful", "feel-good" for sad): films with "avoid" keywords
+    // (e.g. "depressing") are left out of every search, as long as that leaves something.
+    const { avoid } = moodKeywords(emotions, mode);
+    const withoutAvoided = avoid.length ? { without_keywords: avoid.join(',') } : {};
+
+    // A random page keeps picks fresh; narrow searches may have fewer pages, so retry page 1,
+    // and finally without the avoided keywords.
+    const discover = async (withGenres, params, maxPage, { useAvoid = true } = {}) => {
       const page = 1 + Math.floor(random() * maxPage);
       const data = await request('/discover/movie', {
-        with_genres: withGenres, sort_by: 'popularity.desc', 'vote_average.gte': MIN_RATING, include_adult: false, ...params, page,
+        with_genres: withGenres, sort_by: 'popularity.desc', 'vote_average.gte': MIN_RATING, include_adult: false,
+        ...(useAvoid ? withoutAvoided : {}), ...params, page,
       });
-      if (!(data.results || []).length && page > 1) return discover(withGenres, params, 1);
-      return data.results || [];
+      const results = data.results || [];
+      if (!results.length && page > 1) return discover(withGenres, params, 1, { useAvoid });
+      if (!results.length && useAvoid && avoid.length) return discover(withGenres, params, 1, { useAvoid: false });
+      return results;
     };
     // Several typed genres (e.g. "romcom"): look for movies with all of them first, then any.
     const search = async (params, maxPage) => {
@@ -101,16 +114,41 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
       ? discover(`${all},${moodId}`, { 'vote_count.gte': 150 }, 2).catch(() => [])
       : Promise.resolve([]);
 
-    const [found, recent, blended] = await Promise.all([
+    // One mood-keyword search per emotion, so each film knows which emotion it fits.
+    // Recent releases get their own, for the newest pick.
+    // Keywords refine genres rather than replace them: a "sad" pick must be in sad's genres
+    // (comedy, animation, family) AND hopeful/feel-good/...; a typed genre takes their place.
+    const typedGenres = required.length ? (required.length > 1 ? all : any) : undefined;
+    const moodSearch = (params, maxPage) => Promise.all(emotions.map((key, i) => {
+      const { look } = moodKeywords([key], mode);
+      const genresForMood = typedGenres || toIds(genreSets[i] || []).join('|');
+      if (!look.length || !genresForMood) return [];
+      return discover(genresForMood, { with_keywords: look.join('|'), ...params }, maxPage)
+        .then((results) => results.map((r) => ({ ...r, moodIndex: i })))
+        .catch(() => []);
+    })).then((lists) => lists.flat());
+
+    const [found, recent, blended, moodFound, moodRecent] = await Promise.all([
       search({ 'vote_count.gte': 300 }, 10),
       // New releases have fewer votes, so the floor is lower; it still keeps out barely-rated titles.
-      search({ 'vote_count.gte': 100, 'primary_release_date.gte': yearAgo, 'primary_release_date.lte': today }, 1)
-        .catch(() => []),
+      search({ 'vote_count.gte': 100, ...recentDates }, 1).catch(() => []),
       blend,
+      moodSearch({ 'vote_count.gte': 300 }, 8), // every emotion has 9+ pages of these
+      moodSearch({ 'vote_count.gte': 100, ...recentDates }, 1),
     ]);
-    const main = [...blended, ...found.filter((m) => !blended.some((x) => x.id === m.id))];
-    return pickMovies(main.map(toMovie), genreSets, {
-      count, exclude, random, required, newestPool: recent.map(toMovie),
+
+    // Merge the searches; a film found by several mood searches fits all those emotions.
+    const combine = (...lists) => {
+      const byId = new Map();
+      for (const r of lists.flat()) {
+        const prev = byId.get(r.id) || { ...toMovie(r), moodFits: [] };
+        if (r.moodIndex !== undefined && !prev.moodFits.includes(r.moodIndex)) prev.moodFits.push(r.moodIndex);
+        byId.set(r.id, prev);
+      }
+      return [...byId.values()];
+    };
+    return pickMovies(combine(moodFound, blended, found), genreSets, {
+      count, exclude, random, required, newestPool: combine(moodRecent, recent),
     });
   }
 
