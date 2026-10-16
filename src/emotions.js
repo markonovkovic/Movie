@@ -137,8 +137,9 @@ function lookup(word) {
 }
 
 /**
- * Detects the dominant emotion in free text.
- * Returns { emotion, scores, matched } or { emotion: null } when nothing matches.
+ * Detects emotions in free text.
+ * Returns { emotion, emotions, scores, matched }: `emotion` is the dominant one (or null),
+ * `emotions` lists up to three, strongest first.
  */
 function detectEmotion(text) {
   const tokens = tokenize(text);
@@ -156,7 +157,8 @@ function detectEmotion(text) {
   });
 
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  return { emotion: ranked.length ? ranked[0][0] : null, scores, matched };
+  const emotions = ranked.slice(0, 3).map(([key]) => key);
+  return { emotion: emotions[0] || null, emotions, scores, matched };
 }
 
 function listEmotions() {

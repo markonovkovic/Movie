@@ -5,6 +5,8 @@
 // for both recommendations and the "All movies" list.
 // Accepts either a v3 "API Key" or a v4 "API Read Access Token".
 
+const { pickMovies } = require('./picker');
+
 const API = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
 const MAX_PAGE = 500; // TMDB never returns pages beyond 500
@@ -59,9 +61,10 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
     return res.json();
   }
 
-  // Source for recommend(): random popular, well-rated movies from any of the genres.
-  async function recommendSource(genres, { count, exclude = [], random = Math.random }) {
-    const ids = genres.map((g) => GENRE_IDS[g]).filter(Boolean);
+  // Source for recommend(): popular, well-rated movies for one or more emotions.
+  // `genreSets` has one genre list per emotion; picks favour movies fitting several.
+  async function recommendSource(genreSets, { count, exclude = [], random = Math.random }) {
+    const ids = [...new Set(genreSets.flat().map((g) => GENRE_IDS[g]).filter(Boolean))];
     if (!ids.length) return [];
     const data = await request('/discover/movie', {
       with_genres: ids.join('|'), // "|" = any of these genres
@@ -71,13 +74,8 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch } = {}) {
       include_adult: false,
       page: 1 + Math.floor(random() * 10),
     });
-    const excluded = new Set(exclude.map(Number));
-    const results = (data.results || []).filter((m) => !excluded.has(m.id));
-    for (let i = results.length - 1; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [results[i], results[j]] = [results[j], results[i]];
-    }
-    return results.slice(0, count).map(toMovie);
+    const movies = (data.results || []).map(toMovie);
+    return pickMovies(movies, genreSets, { count, exclude, random });
   }
 
   // Browse/search the whole catalogue, 20 movies per page.

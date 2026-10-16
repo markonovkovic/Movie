@@ -80,13 +80,17 @@ test('getTrailer picks the official YouTube trailer, by id or by title search', 
   assert.strictEqual(calls[1].url.pathname, `/3/movie/${SAMPLE[0].id}/videos`);
 });
 
-test('recommendSource returns count movies from the emotion genres, minus excluded', async () => {
+test('recommendSource queries all emotion genres and only returns fitting movies', async () => {
   const calls = [];
   const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
-  const movies = await tmdb.recommendSource(['Comedy', 'Animation'], { count: 3, exclude: [550] });
-  assert.strictEqual(calls[0].url.searchParams.get('with_genres'), '35|16');
-  assert.strictEqual(movies.length, 3);
-  assert.ok(movies.every((m) => m.id !== 550));
+  const movies = await tmdb.recommendSource([['Comedy', 'Drama'], ['Sci-Fi']], { count: 2, exclude: [550] });
+  assert.strictEqual(calls[0].url.searchParams.get('with_genres'), '35|18|878');
+  assert.deepStrictEqual(movies.map((m) => m.title).sort(), ['Forrest Gump', 'Inception']);
+
+  // Only two unseen movies fit, so the third is topped up from ones already shown.
+  const topped = await tmdb.recommendSource([['Comedy', 'Drama'], ['Sci-Fi']], { count: 3, exclude: [550] });
+  assert.deepStrictEqual(topped.slice(0, 2).map((m) => m.title).sort(), ['Forrest Gump', 'Inception']);
+  assert.strictEqual(topped[2].title, 'Fight Club');
 });
 
 test('server uses TMDB for movies, genres and config, and falls back when it fails', async () => {

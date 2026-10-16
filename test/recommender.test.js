@@ -41,7 +41,7 @@ test('starts over when everything has been excluded', () => {
 
 test('rejects unknown emotions and empty input', async () => {
   await assert.rejects(recommend({ emotion: 'hangry' }), /Unknown emotion/);
-  await assert.rejects(recommend({}), /Provide/);
+  await assert.rejects(recommend({}), /Pick an emotion/);
   await assert.rejects(recommend({ text: 'qwerty' }), (err) => err.status === 422);
 });
 
@@ -59,4 +59,48 @@ test('uses an external source when provided and falls back on failure', async ()
   } finally {
     console.warn = orig;
   }
+});
+
+test('combines several emotions, covering each one', async () => {
+  for (let i = 0; i < 25; i++) {
+    const res = await recommend({ emotions: ['scared', 'curious'], mode: 'match' });
+    assert.deepStrictEqual(res.emotions.map((e) => e.key), ['scared', 'curious']);
+    assert.strictEqual(res.movies.length, 3);
+    for (const key of ['scared', 'curious']) {
+      const wanted = new Set(EMOTIONS[key].match);
+      assert.ok(res.movies.some((m) => m.genres.some((g) => wanted.has(g))), `a pick fits ${key}`);
+    }
+  }
+});
+
+test('prefers movies that fit all chosen emotions', () => {
+  const catalogue = [
+    { id: 1, title: 'Only A', genres: ['Horror'], rating: 9 },
+    { id: 2, title: 'Only B', genres: ['Romance'], rating: 9 },
+    { id: 3, title: 'Both', genres: ['Horror', 'Romance'], rating: 6 },
+    { id: 4, title: 'Neither', genres: ['War'], rating: 9 },
+  ];
+  const picks = pickMovies(catalogue, [['Horror'], ['Romance']], { count: 1, random: () => 0.5 });
+  assert.deepStrictEqual(picks.map((m) => m.title), ['Both']);
+});
+
+test('accepts emotions as a list or comma-separated string, and merges with text', async () => {
+  const fromString = await recommend({ emotions: 'Happy, loved' });
+  assert.deepStrictEqual(fromString.emotions.map((e) => e.key), ['happy', 'loved']);
+  assert.match(fromString.message, /happy and romantic/);
+
+  const merged = await recommend({ emotions: ['tired'], text: 'also kind of lonely' });
+  assert.deepStrictEqual(merged.emotions.map((e) => e.key), ['tired', 'lonely']);
+  assert.strictEqual(merged.detectedFrom, 'text');
+
+  const ignoredText = await recommend({ emotions: ['tired'], text: 'qwerty' });
+  assert.deepStrictEqual(ignoredText.emotions.map((e) => e.key), ['tired']);
+
+  const full = await recommend({ emotions: ['happy', 'sad', 'bored'], text: 'so lonely' });
+  assert.deepStrictEqual(full.emotions.map((e) => e.key), ['happy', 'sad', 'bored']);
+  assert.strictEqual(full.detectedFrom, 'selection');
+  assert.strictEqual(full.matchedWords, undefined);
+
+  await assert.rejects(recommend({ emotions: ['happy', 'sad', 'bored', 'tired'] }), /at most 3/);
+  await assert.rejects(recommend({ emotions: 'happy' + ',nope' }), /Unknown emotion "nope"/);
 });

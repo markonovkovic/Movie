@@ -2,8 +2,9 @@
 
 Tell it how you feel and get **3 movies** to watch right now.
 
-- **Pick an emotion** (Happy, Sad, Stressed, Lonely, Bored, …) or **write it in your own words**
-  ("stressed after a long day at work", "not happy today"). The text is analysed for emotion keywords, with simple negation handling.
+- **Pick one or more emotions** (up to 3, e.g. Sad + Romantic) or **write it in your own words**
+  ("stressed after a long day at work", "tired but kind of lonely"). The text is analysed for emotion keywords, with simple negation handling.
+  With several emotions, movies that fit all of them rank highest, and each emotion is represented in the 3 picks.
 - Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
@@ -71,8 +72,8 @@ On the free plan the app sleeps after ~15 minutes without visitors, so the first
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `POST` | `/api/recommend` | Body: `{ "emotion": "sad" }` **or** `{ "text": "I feel lonely" }`, plus optional `"mode": "lift" \| "match"` and `"exclude": [ids]`. Returns 3 movies. |
-| `GET` | `/api/recommend?emotion=sad&mode=match` | Same as above, using query params (`text`, `exclude=1,2,3` also supported). |
+| `POST` | `/api/recommend` | Body: `{ "emotions": ["sad", "loved"] }` (1–3 emotions) and/or `{ "text": "I feel lonely" }`, plus optional `"mode": "lift" \| "match"` and `"exclude": [ids]`. Returns 3 movies. `"emotion": "sad"` still works. |
+| `GET` | `/api/recommend?emotions=sad,loved&mode=match` | Same as above, using query params (`text`, `exclude=1,2,3` also supported). |
 | `GET` | `/api/emotions` | All emotions with their genre mappings. |
 | `GET` | `/api/movies?q=&genre=&sort=popularity\|rating\|year\|title&page=1` | List and search movies (TMDB: the whole catalogue, 20 per page). |
 | `GET` | `/api/movies/:id` | A single movie. |
@@ -90,7 +91,7 @@ curl -s localhost:3000/api/recommend -H 'Content-Type: application/json' \
 
 ```json
 {
-  "emotion": { "key": "stressed", "label": "Stressed", "emoji": "😰" },
+  "emotions": [{ "key": "stressed", "label": "Stressed", "emoji": "😰" }],
   "detectedFrom": "text",
   "mode": "lift",
   "genres": ["Animation", "Comedy", "Family", "Documentary"],
@@ -106,7 +107,8 @@ curl -s localhost:3000/api/recommend -H 'Content-Type: application/json' \
 server.js            HTTP server, REST API and static file serving
 src/movies.js        Built-in movie catalogue
 src/emotions.js      Emotions → genres mapping and free-text emotion detection
-src/recommender.js   Picks 3 movies (weighted random, genre variety, no repeats)
+src/recommender.js   Resolves emotions (buttons, text, AI) and builds the recommendation
+src/picker.js        Picks 3 movies (weighted random, covers every emotion, genre variety, no repeats)
 src/tmdb.js          TMDB client (browse, search, recommend, trailers)
 src/ai-mood.js       Optional AI mood detection with Claude
 public/              Web frontend (HTML/CSS/JS, no build step)

@@ -11,8 +11,9 @@ const DEFAULT_MODEL = 'claude-opus-5-5';
 const EMOTION_KEYS = Object.keys(EMOTIONS);
 
 const SYSTEM_PROMPT = `You classify how a person feels, for a movie recommendation app.
-Read the user's message (any language, slang or emoji) and pick the single emotion from the list that best describes how they feel right now.
-Choose "unknown" only if the message says nothing about their feelings or state of mind.
+Read the user's message (any language, slang or emoji) and list the emotions from the list below that describe how they feel right now, strongest first.
+Usually one emotion is right; list two or three only when the message clearly expresses mixed feelings.
+Return an empty list only if the message says nothing about their feelings or state of mind.
 The "reason" is shown to the user: one short, friendly sentence in English, addressed to them ("You sound…").
 
 Emotions:
@@ -21,17 +22,17 @@ ${EMOTION_KEYS.map((k) => `- ${k}: ${EMOTIONS[k].label}`).join('\n')}`;
 const OUTPUT_SCHEMA = {
   type: 'object',
   properties: {
-    emotion: { type: 'string', enum: [...EMOTION_KEYS, 'unknown'] },
+    emotions: { type: 'array', items: { type: 'string', enum: EMOTION_KEYS } },
     reason: { type: 'string' },
   },
-  required: ['emotion', 'reason'],
+  required: ['emotions', 'reason'],
   additionalProperties: false,
 };
 
 function createAiMoodDetector({ apiKey, model = DEFAULT_MODEL, client } = {}) {
   const anthropic = client || new Anthropic({ apiKey, timeout: 20_000, maxRetries: 1 });
 
-  /** Returns { emotion, reason } or { emotion: null } when no feeling is expressed. */
+  /** Returns { emotions: [up to 3 keys, strongest first], reason }; emotions is empty when no feeling is expressed. */
   return async function detectWithAi(text) {
     const response = await anthropic.beta.messages.create({
       model,
@@ -47,10 +48,10 @@ function createAiMoodDetector({ apiKey, model = DEFAULT_MODEL, client } = {}) {
     const block = response.content.find((b) => b.type === 'text');
     if (!block) throw new Error(`No text in response (stop_reason: ${response.stop_reason})`);
     const result = JSON.parse(block.text);
-    if (result.emotion !== 'unknown' && !EMOTIONS[result.emotion]) {
-      throw new Error(`Unexpected emotion "${result.emotion}"`);
-    }
-    return { emotion: result.emotion === 'unknown' ? null : result.emotion, reason: result.reason };
+    if (!Array.isArray(result.emotions)) throw new Error('Response has no emotions list');
+    const unexpected = result.emotions.find((e) => !EMOTIONS[e]);
+    if (unexpected) throw new Error(`Unexpected emotion "${unexpected}"`);
+    return { emotions: [...new Set(result.emotions)].slice(0, 3), reason: result.reason };
   };
 }
 

@@ -174,6 +174,7 @@ function createServer({ tmdb, detectMood } = {}) {
           ? await readJson(req)
           : {
             emotion: searchParams.get('emotion') || undefined,
+            emotions: searchParams.get('emotions') || undefined,
             text: searchParams.get('text') || undefined,
             mode: searchParams.get('mode') || undefined,
             exclude: (searchParams.get('exclude') || '').split(',').filter(Boolean),

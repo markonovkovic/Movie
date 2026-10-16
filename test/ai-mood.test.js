@@ -23,28 +23,30 @@ const textReply = (obj) => ({ stop_reason: 'end_turn', content: [{ type: 'text',
 
 test('sends a schema-constrained request and parses the result', async () => {
   const calls = [];
-  const detect = createAiMoodDetector({ client: fakeClient(textReply({ emotion: 'stressed', reason: 'You sound swamped.' }), calls) });
+  const detect = createAiMoodDetector({ client: fakeClient(textReply({ emotions: ['stressed', 'scared'], reason: 'You sound swamped.' }), calls) });
   const result = await detect('my boss yelled at me and I want to hide');
-  assert.deepStrictEqual(result, { emotion: 'stressed', reason: 'You sound swamped.' });
+  assert.deepStrictEqual(result, { emotions: ['stressed', 'scared'], reason: 'You sound swamped.' });
   const req = calls[0];
   assert.strictEqual(req.model, 'claude-opus-5-5');
   assert.strictEqual(req.output_config.format.type, 'json_schema');
-  assert.deepStrictEqual(OUTPUT_SCHEMA.properties.emotion.enum, [...Object.keys(EMOTIONS), 'unknown']);
+  assert.deepStrictEqual(OUTPUT_SCHEMA.properties.emotions.items.enum, Object.keys(EMOTIONS));
   assert.strictEqual(req.messages[0].content, 'my boss yelled at me and I want to hide');
 });
 
-test('maps "unknown" to null and rejects refusals and bad output', async () => {
-  const unknown = createAiMoodDetector({ client: fakeClient(textReply({ emotion: 'unknown', reason: '' })) });
-  assert.strictEqual((await unknown('what time is it')).emotion, null);
+test('handles no emotion, duplicates, refusals and bad output', async () => {
+  const none = createAiMoodDetector({ client: fakeClient(textReply({ emotions: [], reason: '' })) });
+  assert.deepStrictEqual((await none('what time is it')).emotions, []);
+  const many = createAiMoodDetector({ client: fakeClient(textReply({ emotions: ['sad', 'sad', 'lonely', 'tired', 'bored'], reason: '' })) });
+  assert.deepStrictEqual((await many('x')).emotions, ['sad', 'lonely', 'tired']);
   const refused = createAiMoodDetector({ client: fakeClient({ stop_reason: 'refusal', content: [] }) });
   await assert.rejects(refused('x'), /declined/);
-  const bogus = createAiMoodDetector({ client: fakeClient(textReply({ emotion: 'hangry', reason: '' })) });
+  const bogus = createAiMoodDetector({ client: fakeClient(textReply({ emotions: ['hangry'], reason: '' })) });
   await assert.rejects(bogus('x'), /Unexpected emotion/);
 });
 
 test('recommend uses AI detection, and falls back to keywords when it fails', async () => {
-  const ai = await recommend({ text: 'ugh, today was a lot' }, { detectMood: async () => ({ emotion: 'tired', reason: 'You sound worn out.' }) });
-  assert.strictEqual(ai.emotion.key, 'tired');
+  const ai = await recommend({ text: 'ugh, today was a lot' }, { detectMood: async () => ({ emotions: ['tired', 'stressed'], reason: 'You sound worn out.' }) });
+  assert.deepStrictEqual(ai.emotions.map((e) => e.key), ['tired', 'stressed']);
   assert.strictEqual(ai.detectedFrom, 'ai');
   assert.strictEqual(ai.reason, 'You sound worn out.');
 
@@ -59,7 +61,7 @@ test('recommend uses AI detection, and falls back to keywords when it fails', as
   }
 
   await assert.rejects(
-    recommend({ text: 'what time is it' }, { detectMood: async () => ({ emotion: null }) }),
+    recommend({ text: 'what time is it' }, { detectMood: async () => ({ emotions: [] }) }),
     (err) => err.status === 422,
   );
   const picked = await recommend({ emotion: 'happy' }, { detectMood: async () => { throw new Error('should not be called'); } });
