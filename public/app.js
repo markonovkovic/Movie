@@ -68,21 +68,39 @@ function saveFavourites() {
   try { localStorage.setItem(FAV_STORAGE, JSON.stringify(favourites)); } catch { /* private mode etc. */ }
   updateFavCount();
 }
+// Outline heart icon; CSS fills it in when the movie is a favourite.
+const HEART_ICON = '<svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+function favButton(m) {
+  const on = isFavourite(m);
+  return `<button class="fav-btn${on ? ' on' : ''}" type="button" data-key="${escapeHtml(movieKey(m))}"
+            aria-pressed="${on}" aria-label="${on ? 'Remove from favourites' : 'Add to favourites'}">${HEART_ICON}</button>`;
+}
+
 const isFavourite = (m) => favourites.some((f) => movieKey(f) === movieKey(m));
 function toggleFavourite(m) {
-  favourites = isFavourite(m) ? favourites.filter((f) => movieKey(f) !== movieKey(m)) : [m, ...favourites];
+  // "Newest" describes a recommendation, not the movie, so it isn't saved.
+  const { isNewest, ...saved } = m;
+  favourites = isFavourite(m) ? favourites.filter((f) => movieKey(f) !== movieKey(m)) : [saved, ...favourites];
   saveFavourites();
   document.querySelectorAll(`.fav-btn[data-key="${CSS.escape(movieKey(m))}"]`).forEach((b) => setFavButton(b, isFavourite(m)));
   if (!$('#view-favourites').hidden) renderFavourites();
 }
 function setFavButton(btn, on) {
   btn.classList.toggle('on', on);
-  btn.textContent = on ? '♥' : '♡';
   btn.setAttribute('aria-label', on ? 'Remove from favourites' : 'Add to favourites');
   btn.setAttribute('aria-pressed', String(on));
+  // Little "pop" when saved.
+  btn.classList.remove('pop');
+  if (on) {
+    void btn.offsetWidth; // restart the animation
+    btn.classList.add('pop');
+  }
 }
 function updateFavCount() {
-  $('#fav-count').textContent = favourites.length ? ` (${favourites.length})` : '';
+  const badge = $('#fav-count');
+  badge.textContent = favourites.length;
+  badge.hidden = !favourites.length;
+  $('#fav-tab').setAttribute('aria-label', `Favourites${favourites.length ? ` (${favourites.length})` : ''}`);
 }
 function renderFavourites() {
   $('#favourites-list').innerHTML = favourites.map(movieCard).join('');
@@ -103,7 +121,6 @@ async function api(path, options) {
 function movieCard(m) {
   rendered.set(movieKey(m), m);
   const key = escapeHtml(movieKey(m));
-  const fav = isFavourite(m);
   const [emoji, c1, c2] = GENRE_STYLE[m.genres[0]] || ['🎬', '#555', '#999'];
   const poster = m.poster
     ? `<div class="poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
@@ -122,8 +139,7 @@ function movieCard(m) {
         <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
         <div class="actions">
           <button class="trailer-btn" type="button" data-key="${key}">▶ Trailer</button>
-          <button class="fav-btn${fav ? ' on' : ''}" type="button" data-key="${key}"
-                  aria-pressed="${fav}" aria-label="${fav ? 'Remove from favourites' : 'Add to favourites'}">${fav ? '♥' : '♡'}</button>
+          ${favButton(m)}
         </div>
       </div>
     </article>`;
@@ -311,7 +327,6 @@ const reveal = { movies: [], index: -1, flipped: new Set(), busy: false };
 function revealCard(m, i, total) {
   rendered.set(movieKey(m), m);
   const key = escapeHtml(movieKey(m));
-  const fav = isFavourite(m);
   const [emoji, c1, c2] = GENRE_STYLE[m.genres[0]] || ['🎬', '#555', '#999'];
   const poster = m.poster
     ? `<div class="reveal-poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
@@ -341,8 +356,7 @@ function revealCard(m, i, total) {
             <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
             <div class="actions">
               <button class="trailer-btn" type="button" data-key="${key}">▶ Watch trailer</button>
-              <button class="fav-btn${fav ? ' on' : ''}" type="button" data-key="${key}"
-                      aria-pressed="${fav}" aria-label="${fav ? 'Remove from favourites' : 'Add to favourites'}">${fav ? '♥' : '♡'}</button>
+              ${favButton(m)}
             </div>
           </div>
         </div>

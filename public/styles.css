@@ -369,9 +369,31 @@ button:disabled { opacity: .55; cursor: wait; }
 .trailer-btn { flex: 1; font-weight: 600; }
 .trailer-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
 .trailer-btn:active, .fav-btn:active { transform: scale(.96); }
-.fav-btn { width: 44px; font-size: 1.15rem; line-height: 1; color: var(--muted); }
-.fav-btn:hover { border-color: var(--accent-2); }
-.fav-btn.on { color: #fff; background: var(--grad); border-color: transparent; }
+.fav-btn { display: grid; place-items: center; width: 44px; padding: 0; color: var(--muted); }
+.fav-btn:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.fav-btn.on { color: #fff; background: var(--grad); border-color: transparent; box-shadow: 0 6px 16px rgb(192 38 211 / .3); }
+
+/* Heart icon: an outline that fills in when saved. */
+.heart {
+  width: 20px; height: 20px; fill: transparent; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  transition: fill .2s, transform .2s;
+}
+.fav-btn.on .heart { fill: currentColor; }
+.fav-btn.pop .heart { animation: heart-pop .45s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes heart-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.inline-heart { width: 1em; height: 1em; vertical-align: -.15em; color: var(--accent-2); }
+
+/* Favourites tab: heart icon + count badge. */
+.tab-fav { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.tab-fav .heart { width: 17px; height: 17px; }
+.tab-fav.active .heart { color: var(--accent-2); fill: currentColor; }
+.count-badge {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  display: inline-grid; place-items: center;
+  background: var(--grad); color: #fff; font-size: .72rem; font-weight: 700; line-height: 1;
+  animation: pop-in .3s ease both;
+}
 
 .more { display: flex; justify-content: center; margin-top: 28px; }
 .badge {
