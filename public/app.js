@@ -20,6 +20,7 @@ const GENRE_STYLE = {
 const THEME_KEY = 'moviepicker:theme';
 const THEMES = ['auto', 'light', 'dark'];
 const THEME_ICONS = { auto: '🌗', light: '☀️', dark: '🌙' };
+const THEME_COLORS = { light: '#f6f5fb', dark: '#0b0a12' };
 const currentTheme = () => document.documentElement.dataset.theme || 'auto';
 
 function applyTheme(theme) {
@@ -29,6 +30,11 @@ function applyTheme(theme) {
     if (theme === 'auto') localStorage.removeItem(THEME_KEY);
     else localStorage.setItem(THEME_KEY, theme);
   } catch { /* not saved, still applied */ }
+  // Match the phone's status bar to the chosen theme (Auto keeps the light/dark pair).
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    if (!meta.dataset.auto) meta.dataset.auto = meta.content;
+    meta.content = theme === 'auto' ? meta.dataset.auto : THEME_COLORS[theme];
+  });
   const label = theme[0].toUpperCase() + theme.slice(1);
   const btn = $('#theme-toggle');
   btn.querySelector('.theme-icon').textContent = THEME_ICONS[theme];
@@ -40,6 +46,41 @@ $('#theme-toggle').addEventListener('click', () => {
   applyTheme(THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length]);
 });
 applyTheme(currentTheme());
+
+/* ---------- Install as an app (PWA) ---------- */
+
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+// Android / Chrome / Edge: offer our own Install button.
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  if (!isStandalone()) $('#install-btn').hidden = false;
+});
+$('#install-btn').addEventListener('click', async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice.catch(() => {});
+  installPrompt = null;
+  $('#install-btn').hidden = true;
+});
+window.addEventListener('appinstalled', () => { $('#install-btn').hidden = true; });
+
+// iPhone / iPad have no install prompt, so show a one-time "Add to Home Screen" tip.
+const IOS_TIP_KEY = 'moviepicker:ios-tip-dismissed';
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let iosTipDismissed = false;
+try { iosTipDismissed = localStorage.getItem(IOS_TIP_KEY) === '1'; } catch { /* show it */ }
+if (isIos && !isStandalone() && !iosTipDismissed) $('#ios-tip').hidden = false;
+$('#ios-tip-close').addEventListener('click', () => {
+  $('#ios-tip').hidden = true;
+  try { localStorage.setItem(IOS_TIP_KEY, '1'); } catch { /* hidden for this visit */ }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 
 const MAX_EMOTIONS = 3;
 const state = {
@@ -112,7 +153,14 @@ function escapeHtml(s) {
 }
 
 async function api(path, options) {
-  const res = await fetch(path, options);
+  let res;
+  try {
+    res = await fetch(path, options);
+  } catch {
+    throw new Error(navigator.onLine === false
+      ? "You're offline. Connect to the internet to find movies."
+      : "Couldn't reach MoviePicker. Please try again in a moment.");
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;

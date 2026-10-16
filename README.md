@@ -22,6 +22,18 @@ Tell it how you feel and get **3 movies** to watch right now.
   ("my boss yelled at me and I just want to hide under a blanket"), slang, emoji and other languages.
 - Browse **All movies**: search by title, director or year; filter by genre; sort by rating or year.
 
+## Install it as an app
+
+MoviePicker is an installable web app (PWA): it gets its own home-screen icon, opens full-screen without the
+browser bar, starts fast, and still opens offline (finding movies needs a connection).
+
+- **Android (Chrome)**: open the site and tap **Install app** in the header (or ⋮ → *Install app*).
+- **iPhone / iPad (Safari)**: tap **Share** → **Add to Home Screen**. A one-time tip on the site explains this.
+- **Desktop (Chrome / Edge)**: click **Install app** in the header, or the install icon in the address bar.
+
+Updates to the site reach installed copies automatically. Files: `public/manifest.webmanifest`,
+`public/sw.js` (service worker), `public/icons/`.
+
 ## Run it
 
 Requires Node.js 18+.

@@ -141,6 +141,26 @@ a { color: var(--accent); }
 .theme-toggle:active { transform: scale(.95); }
 .theme-icon { font-size: 1rem; line-height: 1; }
 
+/* ----- Install as an app ----- */
+.install-btn {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer;
+  background: var(--grad); color: #fff; font: inherit; font-size: .85rem; font-weight: 600;
+  padding: 7px 14px; border-radius: 999px; box-shadow: 0 6px 16px rgb(192 38 211 / .3);
+  animation: pop-in .35s ease both;
+}
+.install-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.install-btn:active { transform: scale(.95); }
+.install-tip {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 12px 14px;
+  background: var(--glass); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 18px; box-shadow: var(--shadow); font-size: .9rem;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.install-tip p { margin: 0; flex: 1; }
+.install-tip-icon { font-size: 1.5rem; }
+.share-icon { width: 1.1em; height: 1.1em; vertical-align: -.2em; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.install-tip-close { border: 0; background: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 4px 6px; }
+
 main { max-width: 1100px; margin: 0 auto; padding: 36px 16px 72px; }
 
 /* ----- Step 1: choose ----- */
@@ -437,9 +457,10 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
 /* ----- Phones ----- */
 @media (max-width: 560px) {
   .top {
-    display: grid; grid-template-columns: 1fr auto; grid-template-areas: "brand theme" "tabs tabs";
-    row-gap: 10px; padding: 10px 16px;
+    display: grid; grid-template-columns: 1fr auto auto; grid-template-areas: "brand install theme" "tabs tabs tabs";
+    column-gap: 8px; row-gap: 10px; padding: 10px 16px;
   }
+  .install-btn { grid-area: install; }
   .brand { grid-area: brand; }
   .theme-toggle { grid-area: theme; }
   .theme-label { display: none; }
@@ -453,7 +474,7 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
   .chip { padding: 8px 13px; }
 
   /* Keep the main buttons in reach on phones. */
-  .find-btn, .reveal-nav { position: sticky; bottom: 12px; z-index: 5; }
+  .find-btn, .reveal-nav { position: sticky; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; }
   .find-btn { max-width: none; }
   .reveal-nav {
     margin: 16px -16px 0; padding: 10px 16px;
