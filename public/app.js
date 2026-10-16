@@ -111,6 +111,9 @@ function setStatus(msg, isError = false) {
 
 /* ---------- Mood view ---------- */
 
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = (ms) => new Promise((ok) => setTimeout(ok, reduceMotion ? 0 : ms));
+
 async function loadEmotions() {
   const { emotions } = await api('/api/emotions');
   $('#emotion-chips').innerHTML = emotions.map((e) =>
@@ -129,57 +132,25 @@ function renderChips(warning = '') {
   $('#chip-hint').textContent = warning || (n
     ? `${n} of ${MAX_EMOTIONS} selected${n < MAX_EMOTIONS ? '. Tap another to mix moods.' : '.'}`
     : `Tap up to ${MAX_EMOTIONS} emotions to mix them.`);
+  updateFindButton();
 }
 
-// Each search gets a number; results from an older search are ignored, so a
-// selection changed while results were loading isn't overwritten by them.
-let latestRequest = 0;
-
-async function getRecommendations({ fresh }) {
-  const requestId = ++latestRequest;
-  if (fresh) state.seen = [];
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  const body = { mode, exclude: state.seen, emotions: state.selected };
-  if (state.text) body.text = state.text;
-
-  setStatus('Finding movies for you…');
-  $('#shuffle').disabled = true;
-  try {
-    const data = await api('/api/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (requestId !== latestRequest) return;
-    state.seen.push(...data.movies.map((m) => m.id));
-    // Moods found in typed text become selected chips, so "show me 3 others" needn't re-analyse it.
-    if (body.text) {
-      const keys = data.emotions.map((e) => e.key);
-      if (keys.join() !== state.selected.join()) {
-        state.selected = keys;
-        renderChips();
-      }
-      state.text = '';
-    }
-
-    const via = data.detectedFrom === 'text' && data.matchedWords?.length
-      ? ` (from “${data.matchedWords.join('”, “')}”)` : '';
-    const feelings = data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ');
-    $('#results-title').textContent = `${feelings}${via}`;
-    const reason = data.detectedFrom === 'ai' && data.reason ? `✨ ${data.reason} ` : '';
-    $('#results-message').textContent = `${reason}${data.message} Genres: ${data.genres.join(', ')}.`;
-    $('#recommendations').innerHTML = data.movies.map(movieCard).join('');
-    $('#results').hidden = false;
-    setStatus('');
-  } catch (err) {
-    if (requestId === latestRequest) setStatus(err.message, true);
-  } finally {
-    if (requestId === latestRequest) $('#shuffle').disabled = false;
-  }
+function updateFindButton() {
+  $('#find').disabled = !state.selected.length && !$('#feeling-text').value.trim();
 }
 
-// Wait a moment after each tap so picking several emotions quickly makes one request.
-let chipTimer;
+// The blurred poster backdrop shows only while movies are being revealed.
+function updateBackdrop() {
+  $('#backdrop').hidden = $('#view-mood').hidden || $('#step-reveal').hidden;
+}
+
+function showStep(step) {
+  $('#step-pick').hidden = step !== 'pick';
+  $('#step-reveal').hidden = step !== 'reveal';
+  updateBackdrop();
+  window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+}
+
 $('#emotion-chips').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -191,33 +162,279 @@ $('#emotion-chips').addEventListener('click', (e) => {
   } else {
     state.selected = [...state.selected, key];
   }
-  state.text = '';
-  renderChips();
-  clearTimeout(chipTimer);
-  if (!state.selected.length) {
-    latestRequest++; // drop any search still loading
-    $('#shuffle').disabled = false;
-    $('#results').hidden = true;
-    return setStatus('');
-  }
   setStatus('');
-  chipTimer = setTimeout(() => getRecommendations({ fresh: true }), 350);
+  renderChips();
 });
 
-$('#text-form').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const text = $('#feeling-text').value.trim();
-  if (!text && !state.selected.length) return setStatus('Pick an emotion or tell us how you feel first 🙂', true);
-  state.text = text;
-  clearTimeout(chipTimer);
+$('#feeling-text').addEventListener('input', updateFindButton);
+$('#feeling-text').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !$('#find').disabled) find();
+});
+$('#find').addEventListener('click', () => find());
+
+function find() {
+  state.text = $('#feeling-text').value.trim();
+  if (!state.text && !state.selected.length) return;
   renderChips();
   getRecommendations({ fresh: true });
+}
+
+// Each search gets a number; results from an older search are ignored, so a
+// change made while results were loading isn't overwritten by them.
+let latestRequest = 0;
+
+// Resolves when the image has loaded (or failed, or taken too long), so cards flip to a ready poster.
+function preload(url, timeout = 2500) {
+  if (!url) return Promise.resolve();
+  return new Promise((done) => {
+    const img = new Image();
+    img.onload = img.onerror = done;
+    img.src = url;
+    setTimeout(done, timeout);
+  });
+}
+
+async function getRecommendations({ fresh }) {
+  const requestId = ++latestRequest;
+  if (fresh) state.seen = [];
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const body = { mode, exclude: state.seen, emotions: state.selected };
+  if (state.text) body.text = state.text;
+
+  setStatus('');
+  $('#find').disabled = true;
+  $('#shuffle').disabled = true;
+  showStep('reveal');
+  // Until the results arrive, show the moods as picked (typed text is analysed by the server).
+  $('#reveal-title').textContent = state.selected
+    .map((k) => $(`.chip[data-emotion="${k}"]`)?.textContent.trim()).filter(Boolean).join(' + ') || 'Reading your mood…';
+  $('#reveal-message').textContent = '';
+  $('#stage').innerHTML = '';
+  $('#stage').hidden = true;
+  $('#reveal-nav').hidden = true;
+  $('#swipe-hint').hidden = true;
+  $('#summary').hidden = true;
+  $('#loading').hidden = false;
+  try {
+    const [data] = await Promise.all([
+      api('/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      wait(1400), // let the shuffle animation play
+    ]);
+    if (requestId !== latestRequest) return;
+    await Promise.all(data.movies.map((m) => preload(m.poster)));
+    if (requestId !== latestRequest) return;
+
+    state.seen.push(...data.movies.map((m) => m.id));
+    // Moods found in typed text become selected chips, so "show me 3 others" needn't re-analyse it.
+    if (body.text) {
+      state.selected = data.emotions.map((e) => e.key);
+      state.text = '';
+      renderChips();
+    }
+
+    const via = data.detectedFrom === 'text' && data.matchedWords?.length
+      ? ` (from “${data.matchedWords.join('”, “')}”)` : '';
+    $('#reveal-title').textContent = `${data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ')}${via}`;
+    const reason = data.detectedFrom === 'ai' && data.reason ? `✨ ${data.reason} ` : '';
+    $('#reveal-message').textContent = `${reason}${data.message}`;
+    $('#loading').hidden = true;
+    startReveal(data.movies);
+  } catch (err) {
+    if (requestId !== latestRequest) return;
+    $('#loading').hidden = true;
+    showStep('pick');
+    setStatus(err.message, true);
+  } finally {
+    if (requestId === latestRequest) {
+      $('#shuffle').disabled = false;
+      updateFindButton();
+    }
+  }
+}
+
+/* ---------- One-by-one reveal ---------- */
+
+const reveal = { movies: [], index: -1, flipped: new Set(), busy: false };
+
+function revealCard(m, i, total) {
+  rendered.set(movieKey(m), m);
+  const key = escapeHtml(movieKey(m));
+  const fav = isFavourite(m);
+  const [emoji, c1, c2] = GENRE_STYLE[m.genres[0]] || ['🎬', '#555', '#999'];
+  const poster = m.poster
+    ? `<div class="reveal-poster" style="background-image:url('${encodeURI(m.poster)}')" role="img" aria-label="${escapeHtml(m.title)} poster"></div>`
+    : `<div class="reveal-poster placeholder" style="background:linear-gradient(135deg, ${c1}, ${c2})"><span>${emoji}</span></div>`;
+  const meta = [m.year, m.director].filter(Boolean).map(escapeHtml);
+  return `
+    <article class="reveal-card${m.isNewest ? ' is-newest' : ''}" aria-label="Movie ${i + 1} of ${total}: ${escapeHtml(m.title)}">
+      <div class="flip">
+        <div class="face back" aria-hidden="true">
+          <span class="back-reel">🎞️</span>
+          <span class="back-label">Pick ${i + 1} of ${total}</span>
+          <span class="back-tap">Tap to reveal</span>
+        </div>
+        <div class="face front">
+          <div class="poster-wrap">
+            ${poster}
+            ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
+          </div>
+          <div class="reveal-info">
+            <p class="reveal-count">Pick ${i + 1} of ${total}</p>
+            <h3 class="reveal-name">${m.url
+              ? `<a href="${encodeURI(m.url)}" target="_blank" rel="noopener">${escapeHtml(m.title)}</a>`
+              : escapeHtml(m.title)}</h3>
+            <div class="meta">${meta.map((x) => `<span>${x}</span>`).join('')}</div>
+            ${m.rating ? `<div class="rating" style="--pct:${Math.min(m.rating * 10, 100)}%"><span class="rating-bar"></span><strong>⭐ ${escapeHtml(m.rating)}</strong></div>` : ''}
+            ${m.description ? `<p class="desc">${escapeHtml(m.description)}</p>` : ''}
+            <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
+            <div class="actions">
+              <button class="trailer-btn" type="button" data-key="${key}">▶ Watch trailer</button>
+              <button class="fav-btn${fav ? ' on' : ''}" type="button" data-key="${key}"
+                      aria-pressed="${fav}" aria-label="${fav ? 'Remove from favourites' : 'Add to favourites'}">${fav ? '♥' : '♡'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>`;
+}
+
+function setBackdrop(url) {
+  const layers = document.querySelectorAll('.backdrop-layer');
+  const next = [...layers].find((l) => !l.classList.contains('on')) || layers[0];
+  layers.forEach((l) => l.classList.remove('on'));
+  if (!url) return;
+  next.style.backgroundImage = `url('${encodeURI(url)}')`;
+  next.classList.add('on');
+}
+
+function sparkle(card) {
+  if (reduceMotion) return;
+  const burst = document.createElement('div');
+  burst.className = 'sparkles';
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement('span');
+    const angle = (i / 18) * Math.PI * 2;
+    const dist = 90 + Math.random() * 90;
+    s.style.setProperty('--x', `${Math.cos(angle) * dist}px`);
+    s.style.setProperty('--y', `${Math.sin(angle) * dist}px`);
+    s.style.animationDelay = `${Math.random() * 120}ms`;
+    s.textContent = ['✦', '✧', '★', '·'][i % 4];
+    burst.appendChild(s);
+  }
+  card.appendChild(burst);
+  setTimeout(() => burst.remove(), 1400);
+}
+
+function flip(card, i) {
+  if (!card || card.classList.contains('flipped')) return;
+  card.classList.add('flipped');
+  reveal.flipped.add(i);
+  if (reveal.movies[i].isNewest) setTimeout(() => sparkle(card), reduceMotion ? 0 : 450);
+}
+
+function renderNav() {
+  const { index, movies } = reveal;
+  $('#dots').innerHTML = movies.map((_, i) =>
+    `<span class="dot${i === index ? ' active' : ''}${reveal.flipped.has(i) ? ' seen' : ''}"></span>`).join('');
+  $('#prev').disabled = index <= 0;
+  $('#next').textContent = index >= movies.length - 1 ? 'See all 3 ✓' : 'Next →';
+}
+
+async function showCard(i, direction = 1) {
+  if (reveal.busy || i < 0 || i >= reveal.movies.length) return;
+  reveal.busy = true;
+  const old = $('#stage .reveal-card');
+  if (old) {
+    old.classList.add(direction > 0 ? 'leave-left' : 'leave-right');
+    await wait(320);
+    old.remove();
+  }
+  reveal.index = i;
+  const m = reveal.movies[i];
+  $('#stage').innerHTML = revealCard(m, i, reveal.movies.length);
+  const card = $('#stage .reveal-card');
+  card.classList.add(direction > 0 ? 'enter-right' : 'enter-left');
+  setBackdrop(m.poster);
+  renderNav();
+  if (reveal.flipped.has(i)) {
+    card.classList.add('flipped', 'no-anim');
+  } else {
+    await wait(550);
+    flip(card, i);
+    renderNav();
+  }
+  reveal.busy = false;
+}
+
+function startReveal(movies) {
+  reveal.movies = movies;
+  reveal.index = -1;
+  reveal.flipped = new Set();
+  $('#summary').hidden = true;
+  $('#stage').hidden = false;
+  $('#reveal-nav').hidden = false;
+  $('#swipe-hint').hidden = false;
+  showCard(0);
+}
+
+function showSummary() {
+  $('#stage').innerHTML = '';
+  $('#stage').hidden = true;
+  $('#reveal-nav').hidden = true;
+  $('#swipe-hint').hidden = true;
+  setBackdrop(null);
+  $('#recommendations').innerHTML = reveal.movies.map(movieCard).join('');
+  $('#summary').hidden = false;
+}
+
+function next() {
+  if (reveal.busy) return;
+  if (reveal.index >= reveal.movies.length - 1) showSummary();
+  else showCard(reveal.index + 1, 1);
+}
+function prev() { showCard(reveal.index - 1, -1); }
+
+$('#next').addEventListener('click', next);
+$('#prev').addEventListener('click', prev);
+$('#stage').addEventListener('click', (e) => {
+  if (e.target.closest('button, a')) return;
+  const card = e.target.closest('.reveal-card');
+  if (card) flip(card, reveal.index);
 });
 
-$('#shuffle').addEventListener('click', () => getRecommendations({ fresh: false }));
+// Swipe between cards on touch screens.
+let swipeStart = null;
+$('#stage').addEventListener('pointerdown', (e) => { swipeStart = { x: e.clientX, y: e.clientY }; });
+$('#stage').addEventListener('pointerup', (e) => {
+  if (!swipeStart) return;
+  const dx = e.clientX - swipeStart.x;
+  const dy = e.clientY - swipeStart.y;
+  swipeStart = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? next : prev)();
+});
 
-document.querySelectorAll('input[name="mode"]').forEach((r) =>
-  r.addEventListener('change', () => { if (state.selected.length || state.text) getRecommendations({ fresh: true }); }));
+document.addEventListener('keydown', (e) => {
+  if ($('#reveal-nav').hidden || $('#view-mood').hidden || $('#trailer-dialog').open) return;
+  if (e.target.closest('input, textarea, select')) return;
+  if (e.key === 'ArrowRight') next();
+  if (e.key === 'ArrowLeft') prev();
+});
+
+function backToPick() {
+  latestRequest++; // drop any search still loading
+  setBackdrop(null);
+  $('#loading').hidden = true;
+  updateFindButton();
+  showStep('pick');
+}
+$('#change-mood').addEventListener('click', backToPick);
+$('#change-mood-2').addEventListener('click', backToPick);
+$('#replay').addEventListener('click', () => startReveal(reveal.movies));
+$('#shuffle').addEventListener('click', () => getRecommendations({ fresh: false }));
 
 /* ---------- Browse view ---------- */
 
@@ -285,8 +502,9 @@ async function openTrailer(m, btn) {
     $('#trailer-frame').src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(t.youtubeKey)}?autoplay=1&rel=0`;
     $('#trailer-youtube').href = t.searchUrl;
     dialog.showModal();
-  } catch (err) {
-    setStatus(err.message, true);
+  } catch {
+    // Couldn't look the trailer up: a YouTube search is the next best thing.
+    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(`${m.title} ${m.year || ''} trailer`)}`, '_blank', 'noopener');
   } finally {
     btn.disabled = false;
   }
@@ -319,6 +537,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   $('#view-mood').hidden = tab.dataset.view !== 'mood';
   $('#view-browse').hidden = tab.dataset.view !== 'browse';
   $('#view-favourites').hidden = tab.dataset.view !== 'favourites';
+  updateBackdrop();
   if (tab.dataset.view === 'favourites') renderFavourites();
   if (tab.dataset.view === 'browse' && !browseLoaded) {
     browseLoaded = true;

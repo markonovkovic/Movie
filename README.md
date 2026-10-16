@@ -8,6 +8,9 @@ Tell it how you feel and get **3 movies** to watch right now.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
 - Choose **Change my mood** (e.g. sad → comedies) or **Match my mood** (e.g. sad → dramas).
+- Tap **🎬 Find movies** and the picks are revealed **one by one**: a shuffling-cards animation, then each
+  movie flips over with its poster as a blurred backdrop (sparkles for the 🆕 newest pick). Move with
+  Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side.
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
 - **♡ Favourites**: save movies to a watchlist (stored in your browser, on that device).
