@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="backdrop" class="backdrop" aria-hidden="true" hidden><div class="backdrop-layer"></div><div class="backdrop-layer"></div></div>
   <header class="top">
     <div class="brand">🎬 MoviePicker</div>
     <nav class="tabs" role="tablist">
@@ -20,35 +21,60 @@
   <main>
     <!-- Mood view -->
     <section id="view-mood" class="view">
-      <h1>How are you feeling right now?</h1>
-      <p class="sub">Pick one or more emotions, or describe it in your own words, and we'll pick 3 movies for you.</p>
+      <!-- Step 1: choose -->
+      <div id="step-pick" class="step">
+        <h1>How are you feeling right now?</h1>
+        <p class="sub">Choose up to 3 emotions, or describe your mood, then tap <strong>Find movies</strong>.</p>
 
-      <div id="emotion-chips" class="chips" aria-label="Emotions" aria-describedby="chip-hint"></div>
-      <p id="chip-hint" class="hint"></p>
+        <div id="emotion-chips" class="chips" aria-label="Emotions" aria-describedby="chip-hint"></div>
+        <p id="chip-hint" class="hint"></p>
 
-      <form id="text-form" class="text-form">
-        <label for="feeling-text" class="visually-hidden">Describe how you feel</label>
-        <input id="feeling-text" type="text" maxlength="300" autocomplete="off"
-               placeholder="…or write it, e.g. &quot;tired but kind of lonely&quot;">
-        <button type="submit" class="primary">Find movies</button>
-      </form>
+        <label for="feeling-text" class="field-label">Or describe it in your own words <span class="optional">(optional)</span></label>
+        <input id="feeling-text" class="text-input" type="text" maxlength="300" autocomplete="off"
+               placeholder="e.g. &quot;tired after work but kind of lonely&quot;">
 
-      <div class="mode" role="radiogroup" aria-label="Recommendation mode">
-        <label><input type="radio" name="mode" value="lift" checked> Change my mood</label>
-        <label><input type="radio" name="mode" value="match"> Match my mood</label>
+        <div class="mode" role="radiogroup" aria-label="Recommendation mode">
+          <label class="mode-option"><input type="radio" name="mode" value="lift" checked><span>✨ Change my mood</span></label>
+          <label class="mode-option"><input type="radio" name="mode" value="match"><span>🎯 Match my mood</span></label>
+        </div>
+
+        <button id="find" class="primary find-btn" type="button" disabled>🎬 Find movies</button>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
       </div>
 
-      <div id="status" class="status" role="status" aria-live="polite"></div>
-
-      <div id="results" class="results" hidden>
-        <div class="results-head">
+      <!-- Step 2: reveal one by one -->
+      <div id="step-reveal" class="step" hidden>
+        <div class="reveal-top">
+          <button id="change-mood" class="link-btn" type="button">← Change mood</button>
           <div>
-            <h2 id="results-title"></h2>
-            <p id="results-message" class="sub"></p>
+            <h2 id="reveal-title" class="reveal-title"></h2>
+            <p id="reveal-message" class="sub reveal-message"></p>
           </div>
-          <button id="shuffle" class="secondary">🔀 Show me 3 others</button>
         </div>
-        <div id="recommendations" class="grid three"></div>
+
+        <div id="loading" class="loading" hidden>
+          <div class="deck" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p>Picking movies for you…</p>
+        </div>
+
+        <div id="stage" class="stage" aria-live="polite"></div>
+
+        <div id="reveal-nav" class="reveal-nav" hidden>
+          <button id="prev" class="secondary nav-btn" type="button" aria-label="Previous movie">←</button>
+          <div id="dots" class="dots" aria-hidden="true"></div>
+          <button id="next" class="primary nav-btn" type="button">Next →</button>
+        </div>
+        <p id="swipe-hint" class="swipe-hint" hidden>Swipe or use ← → to move between movies</p>
+
+        <div id="summary" class="summary" hidden>
+          <h2>Your 3 picks</h2>
+          <div id="recommendations" class="grid three"></div>
+          <div class="summary-actions">
+            <button id="shuffle" class="primary" type="button">🔀 Show me 3 others</button>
+            <button id="replay" class="secondary" type="button">↺ Reveal again</button>
+            <button id="change-mood-2" class="secondary" type="button">Change mood</button>
+          </div>
+        </div>
       </div>
     </section>
 
