@@ -363,7 +363,11 @@ function renderNav() {
   $('#dots').innerHTML = movies.map((_, i) =>
     `<span class="dot${i === index ? ' active' : ''}${reveal.flipped.has(i) ? ' seen' : ''}"></span>`).join('');
   $('#prev').disabled = index <= 0;
-  $('#next').textContent = index >= movies.length - 1 ? 'See all 3 ✓' : 'Next →';
+  const last = index >= movies.length - 1;
+  $('#next').textContent = last ? 'See all 3 ✓' : 'Next →';
+  // On the last card, Start over takes the dots' place so it's reachable before the summary.
+  $('#dots').hidden = last;
+  $('#nav-start-over').hidden = !last;
 }
 
 async function showCard(i, direction = 1) {
@@ -454,7 +458,19 @@ function backToPick() {
   showStep('pick');
 }
 $('#change-mood').addEventListener('click', backToPick);
-$('#change-mood-2').addEventListener('click', backToPick);
+
+// Back to the first screen with nothing selected, to choose a new mood and genre.
+function startOver() {
+  state.selected = [];
+  state.genres = [];
+  state.seen = [];
+  setStatus('');
+  renderChips();
+  renderGenreChips();
+  backToPick();
+}
+$('#start-over').addEventListener('click', startOver);
+$('#nav-start-over').addEventListener('click', startOver);
 $('#replay').addEventListener('click', () => startReveal(reveal.movies));
 $('#shuffle').addEventListener('click', () => getRecommendations({ fresh: false }));
 

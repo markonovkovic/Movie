@@ -12,7 +12,8 @@ Tell it how you feel and get **3 movies** to watch right now.
 - Picks aim to **lift the mood** you chose (e.g. sad → warm comedies). The API can also match it instead (`"mode": "match"`).
 - Tap **🎬 Find movies** and the picks are revealed **one by one**: a shuffling-cards animation, then each
   movie flips over with its poster as a blurred backdrop (sparkles for the 🆕 newest pick). Move with
-  Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side.
+  Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side, with **🏠 Start over**
+  to go back to the first screen with nothing selected.
 - Hit **🔀 Show me 3 others** for new picks without repeats.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
 - **♡ Favourites**: save movies to a watchlist (stored in your browser, on that device).
