@@ -97,9 +97,14 @@ button:disabled { opacity: .6; cursor: wait; }
 .mode-option input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .find-btn { width: 100%; max-width: 420px; padding: 16px 24px; font-size: 1.1rem; border-radius: 14px; transition: transform .15s, box-shadow .2s, opacity .2s; }
-.find-btn:not(:disabled) { box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent); animation: ready 2.4s ease-in-out infinite; }
-.find-btn:not(:disabled):hover { transform: translateY(-2px); }
-.find-btn:disabled { opacity: .45; cursor: not-allowed; }
+.find-btn {
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+  /* Slides in each time it appears, then glows gently. */
+  animation: pop-in .4s cubic-bezier(.2, .9, .3, 1.3) both, ready 2.4s .4s ease-in-out infinite;
+}
+.find-btn:hover { transform: translateY(-2px); }
+.find-btn:disabled { opacity: .6; cursor: wait; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(16px) scale(.92); } }
 @keyframes ready { 50% { box-shadow: 0 8px 32px color-mix(in srgb, var(--accent) 60%, transparent); } }
 .status { margin-top: 12px; }
 
