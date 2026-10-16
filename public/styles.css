@@ -132,7 +132,7 @@ a { color: var(--accent); }
 .tab .short { display: none; }
 .tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 .theme-toggle {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   font: inherit; font-size: .85rem; font-weight: 600; padding: 7px 12px; border-radius: 999px; cursor: pointer;
   box-shadow: var(--shadow-sm); transition: transform .15s, border-color .2s;
@@ -145,9 +145,12 @@ a { color: var(--accent); }
 .install-btn {
   display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer;
   background: var(--grad); color: #fff; font: inherit; font-size: .85rem; font-weight: 600;
-  padding: 7px 14px; border-radius: 999px; box-shadow: 0 6px 16px rgb(192 38 211 / .3);
+  padding: 0 14px; border-radius: 999px; box-shadow: 0 6px 16px rgb(192 38 211 / .3);
   animation: pop-in .35s ease both;
 }
+/* Header buttons share one fixed height and never wrap, so the Install button
+   appearing later doesn't change the header height and push the page down. */
+.install-btn, .theme-toggle { height: 34px; white-space: nowrap; line-height: 1; }
 .install-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .install-btn:active { transform: scale(.95); }
 .install-tip {
@@ -460,7 +463,7 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
     display: grid; grid-template-columns: 1fr auto auto; grid-template-areas: "brand install theme" "tabs tabs tabs";
     column-gap: 8px; row-gap: 10px; padding: 10px 16px;
   }
-  .install-btn { grid-area: install; }
+  .install-btn { grid-area: install; padding: 0 12px; }
   .brand { grid-area: brand; }
   .theme-toggle { grid-area: theme; }
   .theme-label { display: none; }
@@ -494,6 +497,11 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
   .summary-actions { flex-direction: column; }
   .summary-actions button { width: 100%; padding: 14px; }
   .grid.three .poster { aspect-ratio: 16 / 9; }
+}
+
+@media (max-width: 400px) {
+  .install-app-word { display: none; }
+  .brand { font-size: 1.1rem; gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
