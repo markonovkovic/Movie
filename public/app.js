@@ -55,6 +55,7 @@ if (window.Music) {
   window.Music.onChange(({ enabled, playing }) => {
     btn.classList.toggle('off', !enabled);
     btn.classList.toggle('playing', playing);
+    btn.classList.toggle('waiting', enabled && !playing); // blocked until the first tap
     btn.setAttribute('aria-pressed', String(enabled));
     btn.setAttribute('aria-label', enabled ? 'Music: on. Tap to turn off.' : 'Music: off. Tap to turn on.');
     btn.title = enabled ? 'Music on' : 'Music off';
