@@ -221,6 +221,9 @@ a { color: var(--accent); }
 .music-toggle.playing .wave { animation: wave-pulse 1.6s ease-in-out infinite; }
 .music-toggle.playing .wave-2 { animation-delay: .3s; }
 @keyframes wave-pulse { 50% { opacity: .25; } }
+/* On, but the browser is waiting for a first tap before it allows sound: a soft glow invites it. */
+.music-toggle.waiting { animation: music-invite 2.4s ease-in-out infinite; }
+@keyframes music-invite { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); } }
 
 /* ----- Install as an app ----- */
 .install-btn {

@@ -8,6 +8,9 @@
 // default) means: start at the first tap or key press.
 
 (function () {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return; // no Web Audio: no music (the app hides the button)
+
   const PREF_KEY = 'moviepicker:music';
   const VOLUME = 0.55;
 
@@ -72,7 +75,7 @@
   }
 
   function build() {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx = new AudioContextClass();
     master = ctx.createGain();
     master.gain.value = 0;
     const compressor = ctx.createDynamicsCompressor();
@@ -173,7 +176,7 @@
   async function start() {
     if (!ctx) build();
     try { await ctx.resume(); } catch { return; }
-    if (ctx.state !== 'running') return; // still blocked; the next tap tries again
+    if (ctx.state !== 'running') return; // still blocked: the first tap starts it
     if (!timer) step();
     fadeTo(ducked ? 0 : VOLUME, 2.5);
     notify();
@@ -197,19 +200,21 @@
     } catch { /* not saved, still applied */ }
   }
 
-  // "On" waits for the first tap or key press anywhere (browsers block sound before that).
-  let unlocked = false;
+  // "On" starts as soon as the app opens. Browsers often block sound until the visitor has
+  // interacted with the page (installed apps and sites people use a lot are usually allowed),
+  // so if it's blocked, the first tap, click or key press anywhere starts it.
+  const UNLOCK_EVENTS = ['pointerdown', 'mousedown', 'pointerup', 'touchend', 'click', 'keydown'];
   function unlock(e) {
     if (e && e.target && e.target.closest && e.target.closest('#music-toggle')) return; // the button handles itself
-    unlocked = true;
+    UNLOCK_EVENTS.forEach((t) => document.removeEventListener(t, unlock, true));
     if (enabled && !playing() && !document.hidden) start();
-    if (playing()) ['pointerup', 'touchend', 'keydown'].forEach((t) => document.removeEventListener(t, unlock, true));
   }
-  ['pointerup', 'touchend', 'keydown'].forEach((t) => document.addEventListener(t, unlock, true));
+  UNLOCK_EVENTS.forEach((t) => document.addEventListener(t, unlock, true));
+  if (enabled && !document.hidden) start();
 
   // Pause while the app is in the background, carry on when it's back.
   document.addEventListener('visibilitychange', () => {
-    if (!enabled || !unlocked) return;
+    if (!enabled || !ctx) return;
     if (document.hidden) stop();
     else start();
   });
@@ -222,7 +227,6 @@
     toggle() {
       // On but not started yet (no tap so far): this tap starts it rather than turning it off.
       enabled = !(enabled && playing());
-      unlocked = true;
       save();
       if (enabled) start(); else stop();
       notify();

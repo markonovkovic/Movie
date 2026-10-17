@@ -25,8 +25,9 @@ Tell it how you feel and get **3 movies** to watch right now.
 - **Background music** (on by default): calm ambient music generated live in the browser (Web Audio API, so no
   audio files and no licensing). It follows the chosen mood (brighter for Happy, softer for Sad, warmer for Romantic,
   ...), adds a soft whoosh when a card flips, fades out while a trailer plays and pauses when the app is in the
-  background. Browsers only allow sound after a tap, so it starts with the first tap; the 🔊 button mutes it
-  (remembered on that device).
+  background. It starts as soon as the app opens; where the browser blocks sound until the
+  visitor interacts (common on a first visit), the speaker button glows and the first tap anywhere starts it.
+  The 🔊 button mutes it (remembered on that device).
 - **Light / dark theme**: the header toggle switches between Auto (follows the device), Light and Dark; the choice is remembered on that device.
 - **♡ Favourites** and **👁 Seen it**: save movies you like, mark movies you've watched. Both lists are stored in your
   browser (per device), shown under *Your lists*, and **never suggested again**.
