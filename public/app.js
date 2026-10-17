@@ -47,6 +47,11 @@ $('#theme-toggle').addEventListener('click', () => {
 });
 applyTheme(currentTheme());
 
+/* ---------- Opening animation ---------- */
+
+// The home screen's entrance only plays on arrival, not when coming back from the reveal.
+setTimeout(() => document.documentElement.classList.remove('entering', 'with-intro'), 3400);
+
 /* ---------- Tap ripple on buttons ---------- */
 
 const RIPPLE_TARGETS = 'button, .chip, .tab';
@@ -320,8 +325,8 @@ const wait = (ms) => new Promise((ok) => setTimeout(ok, reduceMotion ? 0 : ms));
 
 async function loadEmotions() {
   const { emotions } = await api('/api/emotions');
-  $('#emotion-chips').innerHTML = emotions.map((e) =>
-    `<button class="chip" data-emotion="${e.key}" type="button" aria-pressed="false"><span class="emoji">${e.emoji}</span>${escapeHtml(e.label)}</button>`).join('');
+  $('#emotion-chips').innerHTML = emotions.map((e, i) =>
+    `<button class="chip" data-emotion="${e.key}" type="button" aria-pressed="false" style="--i:${i}"><span class="emoji">${e.emoji}</span>${escapeHtml(e.label)}</button>`).join('');
   renderChips();
 }
 
@@ -375,8 +380,8 @@ $('#emotion-chips').addEventListener('click', (e) => {
 /* Genre options: none selected by default, at most one at a time. */
 async function loadGenreChips() {
   const { genres } = await api('/api/genres');
-  $('#genre-chips').innerHTML = genres.map((g) =>
-    `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`).join('');
+  $('#genre-chips').innerHTML = genres.map((g, i) =>
+    `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false" style="--i:${i}"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`).join('');
   renderGenreChips();
 }
 

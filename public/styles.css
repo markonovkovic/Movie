@@ -87,12 +87,77 @@ body {
 }
 /* Soft aurora behind everything. */
 body::before {
-  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  content: ''; position: fixed; inset: -12%; z-index: -2; pointer-events: none;
   background:
-    radial-gradient(40rem 28rem at 8% -6%, var(--aurora-1), transparent 70%),
-    radial-gradient(34rem 26rem at 100% 8%, var(--aurora-2), transparent 70%),
-    radial-gradient(36rem 30rem at 50% 110%, var(--aurora-3), transparent 70%);
+    radial-gradient(40rem 28rem at 16% 6%, var(--aurora-1), transparent 70%),
+    radial-gradient(34rem 26rem at 92% 14%, var(--aurora-2), transparent 70%),
+    radial-gradient(36rem 30rem at 50% 100%, var(--aurora-3), transparent 70%);
+  animation: aurora 26s ease-in-out infinite alternate; /* slow drift, so the app feels alive */
 }
+@keyframes aurora {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3%, 2%) scale(1.06) rotate(2deg); }
+  100% { transform: translate(-3%, 1%) scale(1.03) rotate(-2deg); }
+}
+
+/* ----- Opening animation ----- */
+/* 1. Branded intro (once per visit): logo pops in with a glow ring, the name slides out,
+      then the intro dissolves into the app. */
+.intro { display: none; }
+.with-intro .intro {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; pointer-events: none;
+  background:
+    radial-gradient(30rem 24rem at 30% 30%, var(--aurora-1), transparent 70%),
+    radial-gradient(28rem 22rem at 75% 70%, var(--aurora-2), transparent 70%),
+    var(--bg);
+  animation: intro-out .6s cubic-bezier(.6, 0, .2, 1) 1.05s forwards;
+}
+.intro-brand { display: flex; align-items: center; gap: 16px; }
+.intro-logo {
+  position: relative; display: grid; place-items: center; width: 76px; height: 76px; border-radius: 22px;
+  background: var(--grad); font-size: 2.2rem; box-shadow: 0 18px 44px rgb(124 58 237 / .45);
+  animation: logo-in .75s cubic-bezier(.2, 1.3, .4, 1) both;
+}
+.intro-logo::after {
+  content: ''; position: absolute; inset: -8px; border-radius: 28px; border: 2px solid rgb(192 38 211 / .6);
+  animation: ring-out 1s .35s ease-out both;
+}
+.intro-name {
+  font: 800 2.2rem var(--font-display); letter-spacing: -.03em; color: var(--text);
+  animation: name-in .65s .25s cubic-bezier(.2, .9, .3, 1) both;
+}
+.intro-name b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+@keyframes logo-in { from { opacity: 0; transform: scale(.45) rotate(-14deg); filter: blur(12px); } }
+@keyframes ring-out { from { opacity: .9; transform: scale(.9); } to { opacity: 0; transform: scale(1.7); } }
+@keyframes name-in {
+  from { opacity: 0; transform: translateX(-16px); filter: blur(8px); clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 -10% 0 0); }
+}
+@keyframes intro-out { to { opacity: 0; transform: scale(1.08); visibility: hidden; } }
+
+/* 2. The home screen builds itself: header, eyebrow, heading word by word, panels, then chips. */
+:root { --enter: .05s; }
+.with-intro { --enter: 1.2s; }
+.entering .top { animation: drop-in .6s cubic-bezier(.2, .9, .3, 1) var(--enter) both; }
+.entering .hero .eyebrow,
+.entering .hero .sub,
+.entering #step-pick .panel { animation: rise-in .65s cubic-bezier(.2, .9, .3, 1) both; }
+.entering .hero .eyebrow { animation-delay: calc(var(--enter) + .05s); }
+.entering .hero h1 .w {
+  display: inline-block; animation: word-in .6s cubic-bezier(.2, .9, .3, 1) both;
+  animation-delay: calc(var(--enter) + .12s + var(--i) * .07s);
+}
+.entering .hero .sub { animation-delay: calc(var(--enter) + .5s); }
+.entering #step-pick .panel:nth-of-type(1) { animation-delay: calc(var(--enter) + .55s); }
+.entering #step-pick .panel:nth-of-type(2) { animation-delay: calc(var(--enter) + .68s); }
+.entering #step-pick .panel:nth-of-type(3) { animation-delay: calc(var(--enter) + .8s); }
+.entering #emotion-chips .chip { animation: chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--enter) + .7s + var(--i) * .03s); }
+.entering #genre-chips .chip { animation: chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--enter) + .85s + var(--i) * .025s); }
+.entering #length-chips .chip { animation: chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--enter) + 1s + var(--i) * .05s); }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-14px); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(22px) scale(.98); filter: blur(4px); } }
+@keyframes word-in { from { opacity: 0; transform: translateY(.55em); filter: blur(10px); } }
+@keyframes chip-in { from { opacity: 0; transform: translateY(10px) scale(.85); } }
 h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.02em; }
 h1 { font-size: clamp(1.9rem, 5vw, 3rem); line-height: 1.1; margin: 0 0 10px; font-weight: 800; }
 h2 { margin: 0; font-weight: 700; }
@@ -625,6 +690,11 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
   .face.cinematic .cinematic-play, .face.cinematic .seen-btn, .face.cinematic .fav-btn { height: 46px; }
   .face.cinematic .seen-btn, .face.cinematic .fav-btn { width: 46px; }
   .cinematic-info { gap: 8px; }
+}
+
+@media (max-width: 560px) {
+  .intro-logo { width: 62px; height: 62px; font-size: 1.8rem; border-radius: 18px; }
+  .intro-name { font-size: 1.8rem; }
 }
 
 @media (max-width: 360px) {

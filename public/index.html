@@ -19,6 +19,17 @@
     // A refresh always starts on the first screen, so don't let the browser restore
     // an old scroll position (it could nudge the page a few pixels on reload).
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    // Opening animation: a short branded intro once per visit (not on every refresh), then the
+    // home screen builds itself. Skipped when the device asks for reduced motion.
+    (function () {
+      var root = document.documentElement;
+      var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var seen = true;
+      try { seen = !!sessionStorage.getItem('moviepicker:intro'); sessionStorage.setItem('moviepicker:intro', '1'); } catch (e) {}
+      if (reduce) return;
+      root.classList.add('entering');
+      if (!seen) root.classList.add('with-intro');
+    })();
     // Apply the saved theme before the page draws, so it never flashes the wrong one.
     try {
       const t = localStorage.getItem('moviepicker:theme');
@@ -31,6 +42,9 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="intro" aria-hidden="true">
+    <div class="intro-brand"><span class="intro-logo">🎬</span><span class="intro-name">Movie<b>Picker</b></span></div>
+  </div>
   <div id="backdrop" class="backdrop" aria-hidden="true" hidden><div class="backdrop-layer"></div><div class="backdrop-layer"></div></div>
   <header class="top">
     <a id="home-link" class="brand" href="/" aria-label="MoviePicker home"><span class="logo" aria-hidden="true">🎬</span><span>Movie<span class="brand-accent">Picker</span></span></a>
@@ -64,7 +78,7 @@
         </div>
         <div class="hero">
           <span class="eyebrow">🍿 Movie night, sorted</span>
-          <h1>How are you <span class="gradient-text">feeling</span> right now?</h1>
+          <h1><span class="w" style="--i:0">How</span> <span class="w" style="--i:1">are</span> <span class="w" style="--i:2">you</span> <span class="w" style="--i:3"><span class="gradient-text">feeling</span></span> <span class="w" style="--i:4">right</span> <span class="w" style="--i:5">now?</span></h1>
           <p class="sub">Choose up to 3 emotions and/or a genre, then tap <strong>Find movies</strong>.</p>
         </div>
 
@@ -95,9 +109,9 @@
             <span class="panel-note">optional</span>
           </div>
           <div id="length-chips" class="chips" role="group" aria-labelledby="length-label">
-            <button class="chip length-opt" data-length="short" type="button" aria-pressed="false"><span class="emoji">⚡</span>Under 90 min</button>
-            <button class="chip length-opt" data-length="medium" type="button" aria-pressed="false"><span class="emoji">🍿</span>Under 2 hours</button>
-            <button class="chip length-opt" data-length="long" type="button" aria-pressed="false"><span class="emoji">🎬</span>Long (2h+)</button>
+            <button class="chip length-opt" data-length="short" type="button" aria-pressed="false" style="--i:0"><span class="emoji">⚡</span>Under 90 min</button>
+            <button class="chip length-opt" data-length="medium" type="button" aria-pressed="false" style="--i:1"><span class="emoji">🍿</span>Under 2 hours</button>
+            <button class="chip length-opt" data-length="long" type="button" aria-pressed="false" style="--i:2"><span class="emoji">🎬</span>Long (2h+)</button>
           </div>
         </section>
 
