@@ -5,13 +5,14 @@
 // falling back to the cached copy when offline. Movie data is never cached; only the small
 // emotion/genre lists the home screen needs are kept.
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = `moviepicker-${VERSION}`;
 const APP_SHELL = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
+  '/music.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

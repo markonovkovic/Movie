@@ -203,6 +203,25 @@ a { color: var(--accent); }
 .theme-toggle:active { transform: scale(.95); }
 .theme-icon { font-size: 1rem; line-height: 1; }
 
+/* ----- Music on/off ----- */
+.music-toggle {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; flex-shrink: 0;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 50%;
+  cursor: pointer; box-shadow: var(--shadow-sm); transition: transform .15s, border-color .2s, color .2s;
+}
+.music-toggle:active { transform: scale(.92); }
+.music-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.music-toggle .speaker { fill: currentColor; }
+.music-toggle .mute { display: none; }
+.music-toggle.off { color: var(--muted); }
+.music-toggle.off .wave { display: none; }
+.music-toggle.off .mute { display: inline; }
+.music-toggle.playing { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+/* The sound waves pulse gently while music plays. */
+.music-toggle.playing .wave { animation: wave-pulse 1.6s ease-in-out infinite; }
+.music-toggle.playing .wave-2 { animation-delay: .3s; }
+@keyframes wave-pulse { 50% { opacity: .25; } }
+
 /* ----- Install as an app ----- */
 .install-btn {
   display: inline-flex; align-items: center; gap: 6px; border: 0; cursor: pointer;
@@ -613,7 +632,7 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
 @media (hover: hover) {
   .brand:hover { opacity: .85; }
   .tab:hover { color: var(--text); }
-  .theme-toggle:hover { border-color: var(--accent); }
+  .theme-toggle:hover, .music-toggle:hover { border-color: var(--accent); }
   button.primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgb(192 38 211 / .38); }
   button.secondary:hover { border-color: var(--accent); }
   .link-btn:hover { color: var(--text); border-color: var(--accent); }
@@ -628,12 +647,13 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
 /* ----- Phones ----- */
 @media (max-width: 560px) {
   .top {
-    display: grid; grid-template-columns: 1fr auto auto; grid-template-areas: "brand install theme" "tabs tabs tabs";
+    display: grid; grid-template-columns: 1fr auto auto auto; grid-template-areas: "brand install music theme" "tabs tabs tabs tabs";
     column-gap: 8px; row-gap: 10px; padding: 10px 16px;
   }
   .install-btn { grid-area: install; padding: 0 12px; }
   .brand { grid-area: brand; }
   .theme-toggle { grid-area: theme; }
+  .music-toggle { grid-area: music; }
   .theme-label { display: none; }
   .tabs { grid-area: tabs; margin-left: 0; }
   .tab { flex: 1; }

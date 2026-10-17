@@ -47,6 +47,32 @@ $('#theme-toggle').addEventListener('click', () => {
 });
 applyTheme(currentTheme());
 
+/* ---------- Background music (generated live, see music.js) ---------- */
+
+const MUSIC_TIP_KEY = 'moviepicker:music-tip';
+if (window.Music) {
+  const btn = $('#music-toggle');
+  window.Music.onChange(({ enabled, playing }) => {
+    btn.classList.toggle('off', !enabled);
+    btn.classList.toggle('playing', playing);
+    btn.setAttribute('aria-pressed', String(enabled));
+    btn.setAttribute('aria-label', enabled ? 'Music: on. Tap to turn off.' : 'Music: off. Tap to turn on.');
+    btn.title = enabled ? 'Music on' : 'Music off';
+    // The first time music starts on its own, say how to turn it off (once per device).
+    if (playing) {
+      try {
+        if (!localStorage.getItem(MUSIC_TIP_KEY)) {
+          localStorage.setItem(MUSIC_TIP_KEY, '1');
+          toast('🎵 Music on. Tap the speaker to mute.');
+        }
+      } catch { /* no tip */ }
+    }
+  });
+  btn.addEventListener('click', () => window.Music.toggle());
+} else {
+  $('#music-toggle').hidden = true;
+}
+
 /* ---------- Opening animation ---------- */
 
 // The home screen's entrance only plays on arrival, not when coming back from the reveal.
@@ -331,6 +357,7 @@ async function loadEmotions() {
 }
 
 function renderChips(warning = '') {
+  window.Music?.setMood(state.selected); // the music follows the chosen mood
   document.querySelectorAll('#emotion-chips .chip').forEach((c) => {
     const on = state.selected.includes(c.dataset.emotion);
     c.classList.toggle('selected', on);
@@ -633,6 +660,7 @@ function flip(card, i) {
   if (!card || card.classList.contains('flipped')) return;
   card.classList.add('flipped');
   reveal.flipped.add(i);
+  window.Music?.whoosh();
   if (reveal.movies[i].isNewest) setTimeout(() => sparkle(card), reduceMotion ? 0 : 450);
 }
 
@@ -845,6 +873,7 @@ async function openTrailer(m, btn) {
     $('#trailer-frame').src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(t.youtubeKey)}?autoplay=1&rel=0`;
     $('#trailer-youtube').href = t.searchUrl;
     dialog.showModal();
+    window.Music?.duck(true);
   } catch {
     // Couldn't look the trailer up: a YouTube search is the next best thing.
     window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(`${m.title} ${m.year || ''} trailer`)}`, '_blank', 'noopener');
@@ -854,6 +883,7 @@ async function openTrailer(m, btn) {
 }
 function closeTrailer() {
   $('#trailer-frame').src = 'about:blank'; // stops playback
+  window.Music?.duck(false);
   if (dialog.open) dialog.close();
 }
 $('#trailer-close').addEventListener('click', closeTrailer);
