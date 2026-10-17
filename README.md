@@ -21,6 +21,8 @@ Tell it how you feel and get **3 movies** to watch right now.
   (sparkles for the 🆕 newest pick). Move by tapping the sides of the card, Next/Back, a swipe, or the arrow keys; after the third, see all 3 side by side, with **🏠 Start over**
   to go back to the first screen with nothing selected.
 - Hit **🔀 Show me 3 others** for new picks without repeats.
+- **Movie details**: tap any movie card (All movies, Favourites, Seen, the summary) to open its details: a big
+  image, the full description, tagline, length, genres, trailer, Seen it / Favourite and a TMDB link.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
 - **Background music** (on by default): calm ambient music generated live in the browser (Web Audio API, so no
   audio files and no licensing). It follows the chosen mood (brighter for Happy, softer for Sad, warmer for Romantic,

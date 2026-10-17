@@ -320,13 +320,11 @@ function movieCard(m) {
     : `<div class="poster" style="background:linear-gradient(135deg, ${c1}, ${c2})"><div><span class="poster-emoji">${emoji}</span>${escapeHtml(m.title)}</div></div>`;
   const meta = [m.year, m.rating ? `⭐ ${m.rating}` : null, formatRuntime(m.runtime), m.director].filter(Boolean).map(escapeHtml);
   return `
-    <article class="card">
+    <article class="card" data-key="${key}">
       ${m.isNewest ? '<span class="new-badge">🆕 Newest</span>' : ''}
       ${poster}
       <div class="card-body">
-        <h3 class="card-title">${m.url
-          ? `<a href="${encodeURI(m.url)}" target="_blank" rel="noopener">${escapeHtml(m.title)}</a>`
-          : escapeHtml(m.title)}</h3>
+        <h3 class="card-title"><button class="card-open" type="button" data-key="${key}">${escapeHtml(m.title)}</button></h3>
         <div class="meta">${meta.map((x) => `<span>${x}</span>`).join('')}</div>
         ${m.description ? `<p class="desc">${escapeHtml(m.description)}</p>` : ''}
         <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
@@ -775,7 +773,7 @@ $('#stage').addEventListener('pointerup', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if ($('#reveal-nav').hidden || $('#view-mood').hidden || $('#trailer-dialog').open) return;
+  if ($('#reveal-nav').hidden || $('#view-mood').hidden || $('#trailer-dialog').open || $('#movie-dialog').open) return;
   if (e.target.closest('input, textarea, select')) return;
   if (e.key === 'ArrowRight') next();
   if (e.key === 'ArrowLeft') prev();
@@ -901,6 +899,74 @@ document.addEventListener('click', (e) => {
   else openTrailer(m, btn);
 });
 
+/* ---------- Movie details: tap a card to see everything about it ---------- */
+
+const movieDialog = $('#movie-dialog');
+const fullDetails = new Map(); // TMDB id -> details (run-time, tagline), fetched once
+
+function movieDetails(m) {
+  const [emoji, c1, c2] = GENRE_STYLE[m.genres[0]] || ['🎬', '#555', '#999'];
+  const key = escapeHtml(movieKey(m));
+  const hero = m.backdrop || m.poster;
+  const meta = [m.year, formatRuntime(m.runtime), m.director].filter(Boolean).map(escapeHtml);
+  return `
+    <div class="md-hero${hero ? '' : ' no-image'}" style="${hero
+      ? `background-image:url('${encodeURI(hero)}')`
+      : `background:linear-gradient(135deg, ${c1}, ${c2})`}">
+      ${hero ? '' : `<span class="md-emoji" aria-hidden="true">${emoji}</span>`}
+    </div>
+    <div class="md-body">
+      <div class="md-head">
+        ${m.poster && m.backdrop ? `<img class="md-poster" src="${encodeURI(m.poster)}" alt="">` : ''}
+        <div class="md-titles">
+          ${m.isNewest ? '<span class="md-kicker">🆕 Newest</span>' : ''}
+          <h2 id="movie-dialog-title">${escapeHtml(m.title)}</h2>
+          <div class="meta">
+            ${m.rating ? `<span class="md-rating">⭐ ${escapeHtml(m.rating)}</span>` : ''}
+            ${meta.map((x) => `<span>${x}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      ${m.tagline ? `<p class="md-tagline">“${escapeHtml(m.tagline)}”</p>` : ''}
+      <p class="md-desc">${m.description ? escapeHtml(m.description) : 'No description yet.'}</p>
+      <div class="tags">${m.genres.map((g) => `<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>
+      <div class="actions md-actions">
+        <button class="trailer-btn" type="button" data-key="${key}">▶ Trailer</button>
+        ${seenButton(m)}
+        ${favButton(m)}
+      </div>
+      ${m.url ? `<a class="md-link" href="${encodeURI(m.url)}" target="_blank" rel="noopener">More on TMDB ↗</a>` : ''}
+    </div>`;
+}
+
+let openMovieId = null;
+async function openMovie(m) {
+  openMovieId = m.id;
+  const show = (extra) => { $('#movie-details').innerHTML = movieDetails({ ...m, ...extra }); };
+  show(fullDetails.get(m.id));
+  movieDialog.showModal();
+  movieDialog.scrollTop = 0;
+  // Lists don't include the length or tagline: fetch them once (TMDB movies), then fill them in.
+  if (!m.url || fullDetails.has(m.id)) return;
+  try {
+    const d = await api(`/api/movies/${m.id}`);
+    fullDetails.set(m.id, { runtime: d.runtime || m.runtime, tagline: d.tagline });
+    if (movieDialog.open && openMovieId === m.id) show(fullDetails.get(m.id));
+  } catch { /* the basics are already shown */ }
+}
+function closeMovie() { if (movieDialog.open) movieDialog.close(); }
+$('#movie-close').addEventListener('click', closeMovie);
+movieDialog.addEventListener('click', (e) => { if (e.target === movieDialog) closeMovie(); });
+
+// Tapping a movie card (anywhere but its buttons) opens its details.
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.actions, a')) return;
+  const card = e.target.closest('.card[data-key], .card-open');
+  if (!card) return;
+  const m = rendered.get(card.dataset.key);
+  if (m) openMovie(m);
+});
+
 /* ---------- Tabs ---------- */
 
 let browseLoaded = false;
@@ -925,6 +991,7 @@ $('#home-link').addEventListener('click', (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let "open in new tab" work
   e.preventDefault();
   if ($('#trailer-dialog').open) closeTrailer();
+  closeMovie();
   $('.tab[data-view="mood"]').click();
   startOver();
 });
