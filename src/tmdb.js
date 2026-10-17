@@ -44,8 +44,9 @@ function toMovie(m) {
     poster: m.poster_path ? IMAGE_BASE + m.poster_path : null,
     backdrop: m.backdrop_path ? BACKDROP_BASE + m.backdrop_path : null,
     url: `https://www.themoviedb.org/movie/${m.id}`,
-    // Only movie details include the length; discover/search results don't.
+    // Only movie details include the length and tagline; discover/search results don't.
     ...(m.runtime ? { runtime: m.runtime } : {}),
+    ...(m.tagline ? { tagline: m.tagline } : {}),
   };
 }
 

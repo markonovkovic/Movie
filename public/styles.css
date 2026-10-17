@@ -527,6 +527,13 @@ button:disabled { opacity: .55; cursor: wait; }
 .card-body { position: relative; z-index: 1; background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card-title { font-family: var(--font-display); font-weight: 700; margin: 0; font-size: 1.05rem; line-height: 1.3; }
 .card-title a { color: inherit; text-decoration: none; }
+/* Cards open the movie's details; the title is the keyboard-friendly way in. */
+.card[data-key] { cursor: pointer; }
+.card-open {
+  all: unset; cursor: pointer; border-radius: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-open:focus-visible { box-shadow: var(--ring); }
 .meta { color: var(--muted); font-size: .85rem; display: flex; gap: 10px; flex-wrap: wrap; }
 .desc { font-size: .9rem; margin: 0; color: var(--muted); }
 .card .desc { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
@@ -630,6 +637,56 @@ dialog::backdrop { background: rgb(8 6 16 / .75); backdrop-filter: blur(6px); }
 .video { aspect-ratio: 16 / 9; background: #000; }
 .video iframe { width: 100%; height: 100%; border: 0; display: block; }
 #trailer-youtube { display: block; padding: 12px 18px 16px; color: var(--muted); font-size: .85rem; }
+
+/* ----- Movie details ----- */
+html:has(dialog[open]) { overflow: hidden; } /* the page behind doesn't scroll */
+.movie-dialog {
+  width: min(720px, calc(100vw - 32px)); max-height: calc(100svh - 48px); overflow-y: auto; overscroll-behavior: contain;
+  position: fixed; animation: md-in .3s cubic-bezier(.2, .9, .3, 1.15) both;
+}
+.movie-dialog::backdrop { animation: fade-in .25s ease both; }
+@keyframes md-in { from { opacity: 0; transform: translateY(24px) scale(.97); } }
+@keyframes fade-in { from { opacity: 0; } }
+.movie-close {
+  position: sticky; top: 12px; float: right; margin: 12px 12px -48px 0; z-index: 3;
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgb(255 255 255 / .25); cursor: pointer;
+  background: rgb(8 6 16 / .55); color: #fff; font-size: 1rem;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.md-hero {
+  position: relative; aspect-ratio: 16 / 9; background-size: cover; background-position: center 20%;
+  display: grid; place-items: center;
+}
+.md-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, var(--surface)); }
+.md-emoji { font-size: 4rem; }
+.md-body { position: relative; padding: 0 24px 24px; margin-top: -56px; display: flex; flex-direction: column; gap: 12px; }
+.md-head { display: flex; align-items: flex-end; gap: 16px; }
+.md-poster {
+  width: 104px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 14px; flex-shrink: 0;
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+}
+.md-titles { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.md-titles h2 { font-size: clamp(1.4rem, 4vw, 1.9rem); line-height: 1.15; }
+.md-kicker { font-size: .78rem; font-weight: 700; color: var(--accent); }
+.md-rating { color: var(--text); font-weight: 600; }
+.md-tagline { margin: 0; font-style: italic; color: var(--muted); }
+.md-desc { margin: 0; font-size: 1rem; line-height: 1.6; }
+.md-body .tags { margin-top: 0; padding-top: 0; }
+.md-actions { padding-top: 4px; }
+.md-actions .trailer-btn { padding: 12px; }
+.md-actions .seen-btn, .md-actions .fav-btn { width: 48px; }
+.md-link { color: var(--muted); font-size: .85rem; align-self: flex-start; }
+
+/* Phones: a sheet that slides up from the bottom. */
+@media (max-width: 560px) {
+  .movie-dialog {
+    width: 100vw; max-width: 100vw; max-height: 92svh; margin: auto 0 0; border-radius: 26px 26px 0 0; border-bottom: 0;
+    animation-name: sheet-in;
+  }
+  @keyframes sheet-in { from { transform: translateY(100%); } }
+  .md-body { padding: 0 18px calc(20px + env(safe-area-inset-bottom)); margin-top: -44px; }
+  .md-poster { width: 84px; }
+}
 
 /* Hover effects only on devices with a real mouse, so they don't "stick" after a tap on phones. */
 @media (hover: hover) {
