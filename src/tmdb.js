@@ -5,7 +5,7 @@
 // for both recommendations and the "All movies" list.
 // Accepts either a v3 "API Key" or a v4 "API Read Access Token".
 
-const { pickMovies, MIN_RATING } = require('./picker');
+const { pickMovies, MIN_RATING, MIN_YEAR } = require('./picker');
 const { moodKeywords } = require('./moods');
 const { compareTitles } = require('./sort');
 
@@ -113,6 +113,8 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
       const page = 1 + Math.floor(random() * maxPage);
       const data = await request('/discover/movie', {
         with_genres: withGenres, sort_by: 'popularity.desc', 'vote_average.gte': MIN_RATING, include_adult: false,
+        // Recommendations are films from MIN_YEAR on; older ones are only in the full list (browse).
+        'primary_release_date.gte': `${MIN_YEAR}-01-01`,
         ...runtime, ...(useAvoid ? withoutAvoided : {}), ...params, page,
       });
       const results = data.results || [];

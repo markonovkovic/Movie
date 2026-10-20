@@ -211,3 +211,13 @@ test('server uses TMDB for movies, genres and config, and falls back when it fai
     server.close();
   }
 });
+
+test('recommendations only search films from 2015 on; recent searches keep their own window', async () => {
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  await tmdb.recommendSource([['Comedy']], { count: 3, emotions: ['happy'], now: new Date('2026-10-20T00:00:00Z') });
+  const searches = calls.filter((c) => c.url.pathname === '/3/discover/movie').map((c) => c.url.searchParams.get('primary_release_date.gte'));
+  assert.ok(searches.includes('2015-01-01'));
+  assert.ok(searches.includes('2025-10-20'), 'the newest pick still looks at the last year');
+  assert.ok(searches.every((d) => d >= '2015-01-01'));
+});
