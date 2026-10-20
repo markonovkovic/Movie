@@ -4,6 +4,8 @@ Tell it how you feel and get **3 movies** to watch right now.
 
 - **Pick one or more emotions** (up to 3, e.g. Sad + Romantic). Movies that fit all of them rank highest,
   and each emotion is represented in the 3 picks.
+- **Recent films only**: recommendations are movies released in 2015 or later (one of the 3 is a release from the
+  last year). Older classics are still in **All movies**.
 - **Pick a genre** (optional, one at a time; none by default). The chosen genre is a firm rule: every pick is in
   it. The emotions then decide which ones fit your mood best, e.g. Happy + Horror favours horror-comedies.
   A genre on its own works too.

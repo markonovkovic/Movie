@@ -213,3 +213,18 @@ test('length is validated, passed to the source and echoed back', async () => {
   assert.deepStrictEqual(res.length, { key: 'short', label: 'Under 90 min' });
   assert.strictEqual(res.movies.length, 3, 'the built-in list still answers (it has no run-times, so length is ignored)');
 });
+
+test('picks are from 2015 on when minYear is set; the built-in list only falls back to older films', async () => {
+  const catalogue = [
+    { id: 1, title: 'Old', year: 1999, genres: ['Comedy'], rating: 9 },
+    { id: 2, title: 'New A', year: 2016, genres: ['Comedy'], rating: 7 },
+    { id: 3, title: 'New B', year: 2020, genres: ['Comedy'], rating: 7 },
+    { id: 4, title: 'New C', year: 2024, genres: ['Comedy'], rating: 7 },
+  ];
+  const picks = pickMovies(catalogue, ['Comedy'], { count: 3, minYear: 2015 });
+  assert.deepStrictEqual(picks.map((m) => m.id).sort(), [2, 3, 4]);
+
+  const res = await recommend({ emotions: ['happy'] });
+  assert.strictEqual(res.movies.length, 3);
+  assert.ok(res.movies.every((m) => m.year >= 2015), res.movies.map((m) => `${m.title} ${m.year}`).join(', '));
+});

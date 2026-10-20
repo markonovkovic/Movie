@@ -2,7 +2,7 @@
 
 const { MOVIES } = require('./movies');
 const { EMOTIONS, detectEmotion } = require('./emotions');
-const { pickMovies, DEFAULT_COUNT } = require('./picker');
+const { pickMovies, DEFAULT_COUNT, MIN_YEAR } = require('./picker');
 const { parseGenres, ALL_GENRES } = require('./genres');
 
 const MAX_EMOTIONS = 3;
@@ -138,7 +138,14 @@ async function recommend(input = {}, deps = {}) {
     }
   }
   if (!movies || !movies.length) {
-    movies = pickMovies(MOVIES, genreSets, { count, exclude, hide, random, required });
+    // Built-in list: recent films (MIN_YEAR on) first; it is small, so older ones fill any gap.
+    movies = pickMovies(MOVIES, genreSets, { count, exclude, hide, random, required, minYear: MIN_YEAR });
+    if (movies.length < count) {
+      const ids = new Set(movies.map((m) => m.id));
+      const older = pickMovies(MOVIES, genreSets, { count, exclude: [...exclude, ...ids], hide, random, required })
+        .filter((m) => !ids.has(m.id)).map(({ isNewest, ...m }) => m);
+      movies = [...movies, ...older].slice(0, count);
+    }
   }
 
   const labels = chosen.map((e) => e.label.toLowerCase());

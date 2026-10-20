@@ -2,6 +2,7 @@
 
 const DEFAULT_COUNT = 3;
 const MIN_RATING = 6; // never recommend movies rated below this
+const MIN_YEAR = 2015; // recommendations are recent films; older ones are only in the full list
 const NEWEST_CHOICES = 5; // the newest pick is random among this many best-fitting recent movies
 
 function shuffle(items, random) {
@@ -49,7 +50,7 @@ function score(movies, sets, random, required = new Set()) {
 }
 
 /**
- * Picks `count` movies rated at least `minRating`.
+ * Picks `count` movies rated at least `minRating`, released in `minYear` or later.
  *
  * `genreSets` has one genre list per emotion, e.g. [['Comedy', 'Family'], ['Romance']]
  * for two emotions (a single flat list is treated as one emotion; it may be empty).
@@ -63,6 +64,7 @@ function score(movies, sets, random, required = new Set()) {
  */
 function pickMovies(catalogue, genreSets, {
   count = DEFAULT_COUNT, exclude = [], hide = [], random = Math.random, minRating = MIN_RATING, newestPool = [], required = [],
+  minYear = 0,
 } = {}) {
   const sets = (typeof genreSets[0] === 'string' ? [genreSets] : genreSets).map((s) => new Set(s));
   const requiredSet = new Set(required);
@@ -74,7 +76,7 @@ function pickMovies(catalogue, genreSets, {
   const hasAll = (m) => required.every((g) => m.genres.includes(g));
   const hasAny = (m) => !requiredSet.size || m.genres.some((g) => requiredSet.has(g));
   const usable = (list, match = hasAny) => list.filter((m) => !excluded.has(m.id) && !hidden.has(m.id)
-    && isGoodEnough(m, minRating) && match(m));
+    && isGoodEnough(m, minRating) && (m.year || 0) >= minYear && match(m));
   const strict = required.length > 1 && usable(catalogue, hasAll).length >= count;
   const match = strict ? hasAll : hasAny;
 
@@ -124,7 +126,7 @@ function pickMovies(catalogue, genreSets, {
 
   // Not enough unseen movies left: top up with ones shown before rather than return fewer.
   if (picks.length < count && excluded.size) {
-    for (const m of pickMovies(catalogue, genreSets, { count, hide, random, minRating, newestPool, required })) {
+    for (const m of pickMovies(catalogue, genreSets, { count, hide, random, minRating, newestPool, required, minYear })) {
       if (picks.length === count) break;
       if (!pickedIds.has(m.id)) { picks.push(m); pickedIds.add(m.id); }
     }
@@ -138,4 +140,4 @@ function pickMovies(catalogue, genreSets, {
   });
 }
 
-module.exports = { pickMovies, shuffle, DEFAULT_COUNT, MIN_RATING };
+module.exports = { pickMovies, shuffle, DEFAULT_COUNT, MIN_RATING, MIN_YEAR };
