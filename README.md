@@ -3,6 +3,10 @@
 Pick a genre and/or how much time you have, and get **3 movies** to watch right now.
 
 - **Pick a genre** (one at a time; none by default). Every pick is in it.
+- **…or a style**: ✨ 21 popular kinds of film that aren't TMDB genres: Superhero, Anime, Romcom, True Story, Musical,
+  Sports, Christmas, Coming of Age, Heist, Spy, Martial Arts, Time Travel, Space, Dystopia, Zombie, Serial Killer,
+  Psychological, Disaster, Monster, Road Trip and Stand-up. They're found with TMDB keywords (`STYLES` in
+  `src/genres.js`); the built-in fallback list uses each style's nearest genre.
 - **How much time do you have?**: ⚡ Under 90 min, 🍿 Under 2 hours or 🎬 Long (2h+). All picks fit the time
   (with TMDB each pick's real length is checked; the built-in list has no run-times), and every pick shows its length.
   Either choice works on its own: a length alone gives top picks of any genre.

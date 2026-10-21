@@ -237,3 +237,20 @@ test('a length alone is enough: any genre', async () => {
   const genreAndLength = await recommend({ genres: ['Comedy'], length: 'long' });
   assert.match(genreAndLength.message, /Top Comedy picks, long \(2h\+\)\./);
 });
+
+test('styles are accepted like genres; the built-in list uses their nearest genres', async () => {
+  const res = await recommend({ genres: ['superhero'] });
+  assert.deepStrictEqual(res.requestedGenres, ['Superhero']);
+  assert.match(res.message, /Top Superhero picks/);
+  assert.ok(res.movies.every((m) => m.genres.includes('Action')));
+  const seen = [];
+  await recommend({ genres: ['Anime'], length: 'short' }, { source: async (sets, opts) => { seen.push(opts.required); return MOVIES.slice(0, 3); } });
+  assert.deepStrictEqual(seen, [['Anime']], 'the source gets the style itself');
+});
+
+test('a style with no films (e.g. for that length) is a clear error, not other films', async () => {
+  await assert.rejects(recommend({ genres: ['Stand-up'], length: 'long' }, { source: async () => [] }),
+    (err) => err.status === 404 && /No Stand-up movies found that are long \(2h\+\)/.test(err.message));
+  const res = await recommend({ genres: ['Stand-up'] }, { source: async () => { throw new Error('down'); } });
+  assert.strictEqual(res.source, 'local', 'TMDB down: the built-in list still helps');
+});

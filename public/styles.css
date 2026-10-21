@@ -150,7 +150,7 @@ body::before {
 .entering .hero .sub { animation-delay: calc(var(--enter) + .5s); }
 .entering #step-pick .panel:nth-of-type(1) { animation-delay: calc(var(--enter) + .55s); }
 .entering #step-pick .panel:nth-of-type(2) { animation-delay: calc(var(--enter) + .68s); }
-.entering #genre-chips .chip { animation: chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--enter) + .7s + var(--i) * .03s); }
+.entering #genre-chips .chip, .entering #style-chips .chip { animation: chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--enter) + .7s + var(--i) * .03s); }
 .entering #length-chips .chip { animation: chip-in .45s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--enter) + .85s + var(--i) * .05s); }
 @keyframes drop-in { from { opacity: 0; transform: translateY(-14px); } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(22px) scale(.98); filter: blur(4px); } }
@@ -268,6 +268,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 36px 16px 72px; }
 .panel-note { margin-left: auto; color: var(--muted); font-size: .8rem; font-weight: 500; white-space: nowrap; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+#style-chips:not(.show-all) .chip.extra { display: none; }
+.more-chip { border-style: dashed; color: var(--accent); font-weight: 600; }
+.chips-label { margin: 18px 0 10px; font-family: var(--font-body, inherit); font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .chip {
   display: inline-flex; align-items: center; gap: 7px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);

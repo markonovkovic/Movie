@@ -13,6 +13,11 @@ const GENRE_STYLE = {
   Romance: ['❤️', '#c2185b', '#f8bbd0'], 'Sci-Fi': ['🚀', '#0277bd', '#80deea'],
   Sport: ['🏆', '#ef6c00', '#ffcc80'], Thriller: ['🔪', '#4a148c', '#ef5350'],
   War: ['🎖️', '#455a64', '#a1887f'], Western: ['🤠', '#a1572b', '#ffcc80'],
+  // Styles
+  Superhero: ['🦸'], Anime: ['🍥'], Romcom: ['💘'], 'True Story': ['📰'], Musical: ['🎤'], Sports: ['⚽'],
+  Christmas: ['🎄'], 'Coming of Age': ['🌱'], Heist: ['💰'], Spy: ['🕶️'], 'Martial Arts': ['🥋'],
+  'Time Travel': ['⏳'], Space: ['🪐'], Dystopia: ['🏙️'], Zombie: ['🧟'], 'Serial Killer': ['🩸'],
+  Psychological: ['🧠'], Disaster: ['🌋'], Monster: ['👹'], 'Road Trip': ['🚗'], 'Stand-up': ['🎙️'],
 };
 
 /* ---------- Theme: Auto (follows the device), Light or Dark ---------- */
@@ -366,9 +371,18 @@ function showStep(step) {
 
 /* Genre options: none selected by default, at most one at a time. */
 async function loadGenreChips() {
-  const { genres } = await api('/api/genres');
-  $('#genre-chips').innerHTML = genres.map((g, i) =>
-    `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false" style="--i:${i}"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`).join('');
+  const { genres, styles = [] } = await api('/api/genres');
+  const chip = (g, i) =>
+    `<button class="chip genre-opt" data-genre="${escapeHtml(g)}" type="button" aria-pressed="false" style="--i:${i}"><span class="emoji">${(GENRE_STYLE[g] || ['🎬'])[0]}</span>${escapeHtml(g)}</button>`;
+  $('#genre-chips').innerHTML = genres.map(chip).join('');
+  // Styles (Superhero, Anime, ...) work just like genres: one choice across both groups.
+  // The first few styles show; a "+ N more" chip reveals the rest.
+  const SHOWN_STYLES = 6;
+  const more = styles.length - SHOWN_STYLES;
+  $('#style-chips').innerHTML = styles.map((g, i) => chip(g, genres.length + i)
+    .replace('class="chip genre-opt"', `class="chip genre-opt${i >= SHOWN_STYLES ? ' extra' : ''}"`)).join('')
+    + (more > 0 ? `<button id="more-styles" class="chip more-chip" type="button" aria-expanded="false">＋ ${more} more</button>` : '');
+  $('#style-label').hidden = !styles.length;
   renderGenreChips();
 }
 
@@ -380,13 +394,21 @@ function renderGenreChips() {
     c.setAttribute('aria-pressed', String(on));
   });
   $('#genre-hint').textContent = state.genres.length
-    ? `All picks will be ${state.genres[0]}. Tap it again to clear.`
+    ? `All picks: ${(GENRE_STYLE[state.genres[0]] || ['🎬'])[0]} ${state.genres[0]}. Tap it again to clear.`
     : 'Tap a genre to choose one.';
   updateFindButton();
 }
 
-// Tapping a genre selects it (replacing any other); tapping the selected one clears it.
-$('#genre-chips').addEventListener('click', (e) => {
+$('#style-chips').addEventListener('click', (e) => {
+  const btn = e.target.closest('#more-styles');
+  if (!btn) return;
+  $('#style-chips').classList.add('show-all');
+  btn.setAttribute('aria-expanded', 'true');
+  btn.remove();
+});
+
+// Tapping a genre or style selects it (replacing any other); tapping the selected one clears it.
+$('#step-pick').addEventListener('click', (e) => {
   const chip = e.target.closest('.genre-opt');
   if (!chip) return;
   const g = chip.dataset.genre;
@@ -956,4 +978,4 @@ $('#home-link').addEventListener('click', (e) => {
 
 updateFavCount();
 
-loadGenreChips().catch(() => { $('#genre-chips').hidden = true; });
+loadGenreChips().catch(() => { $('#genre-chips').hidden = true; $('#style-chips').hidden = true; });

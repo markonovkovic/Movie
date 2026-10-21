@@ -6,7 +6,7 @@ const path = require('path');
 
 const { MOVIES, GENRES } = require('./src/movies');
 const { listEmotions, detectEmotion } = require('./src/emotions');
-const { parseGenres } = require('./src/genres');
+const { parseGenres, ALL_STYLES } = require('./src/genres');
 const { compareTitles } = require('./src/sort');
 const { recommend, RecommendationError } = require('./src/recommender');
 const { createTmdbClient } = require('./src/tmdb');
@@ -141,7 +141,8 @@ function createServer({ tmdb, detectMood } = {}) {
         return sendJson(res, 200, { source: tmdb ? 'tmdb' : 'local', aiMood: Boolean(detectMood) });
       }
       if (pathname === '/api/genres' && req.method === 'GET') {
-        return sendJson(res, 200, { genres: tmdb ? tmdb.genres : GENRES });
+        // Styles (Superhero, Anime, ...) are offered next to genres for recommendations.
+        return sendJson(res, 200, { genres: tmdb ? tmdb.genres : GENRES, styles: ALL_STYLES });
       }
       if (pathname === '/api/movies' && req.method === 'GET') {
         return sendJson(res, 200, await browseMovies(searchParams, tmdb));

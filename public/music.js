@@ -52,6 +52,13 @@
     Drama: 'gentle', History: 'gentle', War: 'gentle', Documentary: 'gentle', Biography: 'gentle',
     Romance: 'warm',
     Horror: 'mysterious', Thriller: 'mysterious', Mystery: 'mysterious', Crime: 'mysterious', 'Sci-Fi': 'mysterious',
+    // Styles
+    Superhero: 'bright', Anime: 'bright', Musical: 'bright', Sports: 'bright', Christmas: 'bright', 'Martial Arts': 'bright',
+    'Road Trip': 'bright', 'Stand-up': 'bright', Disaster: 'bright',
+    Romcom: 'warm', 'Coming of Age': 'warm',
+    'True Story': 'gentle',
+    Heist: 'mysterious', Spy: 'mysterious', 'Time Travel': 'mysterious', Space: 'mysterious', Dystopia: 'mysterious',
+    Zombie: 'mysterious', 'Serial Killer': 'mysterious', Psychological: 'mysterious', Monster: 'mysterious',
   };
 
   let ctx = null;

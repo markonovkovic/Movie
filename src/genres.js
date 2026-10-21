@@ -56,4 +56,32 @@ function parseGenres(text) {
   return { genres, matched: found.map((f) => f.phrase) };
 }
 
-module.exports = { parseGenres, ALL_GENRES, GENRE_WORDS };
+// Styles: popular kinds of film that aren't TMDB genres, found by TMDB keywords (IDs from
+// /search/keyword), optionally within genres (all of them). `local` are the genres used when
+// falling back to the built-in list, which has no keywords.
+const STYLES = {
+  Superhero: { keywords: [9715], local: ['Action'] },
+  Anime: { keywords: [210024], genres: ['Animation'], local: ['Animation'] },
+  Romcom: { genres: ['Romance', 'Comedy'], local: ['Romance', 'Comedy'] },
+  'True Story': { keywords: [9672, 5565], local: ['Biography'] },
+  Musical: { keywords: [4344], local: ['Music'] },
+  Sports: { keywords: [6075], local: ['Sport'] },
+  Christmas: { keywords: [207317], local: ['Family'] },
+  'Coming of Age': { keywords: [10683], local: ['Drama'] },
+  Heist: { keywords: [10051], local: ['Crime'] },
+  Spy: { keywords: [470], local: ['Thriller'] },
+  'Martial Arts': { keywords: [779], local: ['Action'] },
+  'Time Travel': { keywords: [4379], local: ['Sci-Fi'] },
+  Space: { keywords: [9882, 3801], local: ['Sci-Fi'] },
+  Dystopia: { keywords: [4565, 4458], local: ['Sci-Fi'] },
+  Zombie: { keywords: [12377], local: ['Horror'] },
+  'Serial Killer': { keywords: [10714], local: ['Thriller'] },
+  Psychological: { keywords: [12565], local: ['Thriller'] },
+  Disaster: { keywords: [10617, 5096], local: ['Action'] },
+  Monster: { keywords: [1299, 11100], local: ['Horror'] },
+  'Road Trip': { keywords: [7312], local: ['Comedy'] },
+  'Stand-up': { keywords: [9716], local: ['Comedy'] },
+};
+const ALL_STYLES = Object.keys(STYLES);
+
+module.exports = { parseGenres, ALL_GENRES, GENRE_WORDS, STYLES, ALL_STYLES };

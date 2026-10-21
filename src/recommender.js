@@ -3,7 +3,7 @@
 const { MOVIES } = require('./movies');
 const { EMOTIONS, detectEmotion } = require('./emotions');
 const { pickMovies, DEFAULT_COUNT, MIN_YEAR } = require('./picker');
-const { parseGenres, ALL_GENRES } = require('./genres');
+const { parseGenres, ALL_GENRES, ALL_STYLES, STYLES } = require('./genres');
 
 const MAX_EMOTIONS = 3;
 const LENGTH_LABELS = { short: 'Under 90 min', medium: 'Under 2 hours', long: 'Long (2h+)' };
@@ -59,7 +59,8 @@ function resolveGenres({ genres, genre } = {}) {
   let list = genres ?? [];
   if (typeof list === 'string') list = list.split(',');
   if (!Array.isArray(list)) throw new RecommendationError('"genres" must be a list of genre names.');
-  const byLower = new Map(ALL_GENRES.map((g) => [g.toLowerCase(), g]));
+  // Genres and styles (Superhero, Anime, ...) are chosen the same way.
+  const byLower = new Map([...ALL_GENRES, ...ALL_STYLES].map((g) => [g.toLowerCase(), g]));
   const named = list.map((g) => String(g).trim()).filter(Boolean).map((g) => {
     const known = byLower.get(g.toLowerCase());
     if (!known) throw new RecommendationError(`Unknown genre "${g}".`);
@@ -136,14 +137,23 @@ async function recommend(input = {}, deps = {}) {
     } catch (err) {
       // Fall back to the built-in catalogue if the external API fails.
       console.warn(`[recommend] external source failed, using local catalogue: ${err.message}`);
+      movies = null;
+    }
+    // A style with nothing to show (e.g. Stand-up that's 2h+) is better said than swapped for other films.
+    const style = required.find((g) => STYLES[g]);
+    if (movies && !movies.length && style) {
+      throw new RecommendationError(
+        `No ${style} movies found${length ? ` that are ${LENGTH_LABELS[length].toLowerCase()}` : ''}. Try another ${length ? 'length' : 'style'}.`, 404);
     }
   }
   if (!movies || !movies.length) {
     // Built-in list: recent films (MIN_YEAR on) first; it is small, so older ones fill any gap.
-    movies = pickMovies(MOVIES, genreSets, { count, exclude, hide, random, required, minYear: MIN_YEAR });
+    // Styles have no keywords here, so their nearest genres are used.
+    const localRequired = [...new Set(required.flatMap((g) => (STYLES[g] ? STYLES[g].local : [g])))];
+    movies = pickMovies(MOVIES, genreSets, { count, exclude, hide, random, required: localRequired, minYear: MIN_YEAR });
     if (movies.length < count) {
       const ids = new Set(movies.map((m) => m.id));
-      const older = pickMovies(MOVIES, genreSets, { count, exclude: [...exclude, ...ids], hide, random, required })
+      const older = pickMovies(MOVIES, genreSets, { count, exclude: [...exclude, ...ids], hide, random, required: localRequired })
         .filter((m) => !ids.has(m.id)).map(({ isNewest, ...m }) => m);
       movies = [...movies, ...older].slice(0, count);
     }

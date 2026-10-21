@@ -6,6 +6,7 @@
 // Accepts either a v3 "API Key" or a v4 "API Read Access Token".
 
 const { pickMovies, MIN_RATING, MIN_YEAR } = require('./picker');
+const { STYLES } = require('./genres');
 const { moodKeywords } = require('./moods');
 const { compareTitles } = require('./sort');
 
@@ -88,10 +89,16 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
   // plus one recent release. `genreSets` has one genre list per emotion (may be empty).
   // `required` genres (typed by the user) limit the search to those genres; emotions then rank the results.
   async function recommendSource(genreSets, {
-    count, exclude = [], hide = [], random = Math.random, now = new Date(), required = [], emotions = [], mode = 'lift',
-    length,
+    count, exclude = [], hide = [], random = Math.random, now = new Date(), required: requested = [], emotions = [],
+    mode = 'lift', length,
   }) {
-    const runtime = LENGTHS[length] || {};
+    // A style (Superhero, Anime, ...) is a keyword search, within its genres if it has any.
+    const style = requested.map((g) => STYLES[g]).find(Boolean);
+    const required = style ? style.genres || [] : requested;
+    const styleKeywords = style && style.keywords ? { with_keywords: style.keywords.join('|') } : {};
+    // Styles have fewer films, so lesser-known ones are allowed in.
+    const mainVotes = style ? 100 : 300;
+    const runtime = { ...(LENGTHS[length] || {}), ...styleKeywords };
     const toIds = (genres) => [...new Set(genres.map((g) => GENRE_IDS[g]).filter(Boolean))];
     // TMDB has no Sport or Biography genre: an empty result lets the built-in list handle those.
     const ids = required.length ? toIds(required) : toIds(genreSets.flat());
@@ -158,7 +165,7 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
     })).then((lists) => lists.flat());
 
     const [found, recent, blended, moodFound, moodRecent] = await Promise.all([
-      search({ 'vote_count.gte': 300 }, 10),
+      search({ 'vote_count.gte': mainVotes }, style ? 4 : 10),
       // New releases have fewer votes, so the floor is lower; it still keeps out barely-rated titles.
       search({ 'vote_count.gte': 100, ...recentDates }, 1).catch(() => []),
       blend,
@@ -182,7 +189,7 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
     // TMDB's run-time search doesn't always match a film's own page, so extra picks are made,
     // each film's real length is checked, and the best ones that really fit are kept.
     const checked = await withRuntimes(pickMovies(pool, genreSets, { count: count * 3, ...pickOpts }));
-    const { 'with_runtime.gte': min = 0, 'with_runtime.lte': max = Infinity } = runtime;
+    const { 'with_runtime.gte': min = 0, 'with_runtime.lte': max = Infinity } = LENGTHS[length];
     const fits = checked.filter((m) => !m.runtime || (m.runtime >= min && m.runtime <= max));
     return (fits.length >= count ? fits : [...fits, ...checked.filter((m) => !fits.includes(m))]).slice(0, count);
   }
@@ -290,7 +297,7 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
     return best ? { youtubeKey: best.key, name: best.name } : null;
   }
 
-  return { recommendSource, browse, getMovie, getTrailer, genres: GENRES };
+  return { recommendSource, browse, getMovie, getTrailer, genres: GENRES, styles: Object.keys(STYLES) };
 }
 
 module.exports = { createTmdbClient, GENRE_IDS, toMovie, LENGTHS };

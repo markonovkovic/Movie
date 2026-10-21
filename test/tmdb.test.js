@@ -250,3 +250,20 @@ test('with a length, picks whose real run-time does not fit are dropped', async 
     assert.deepStrictEqual(movies.map((m) => m.id).sort(), [120, 550]);
   }
 });
+
+test('a style (Superhero, Romcom, ...) searches by its keywords and/or genres', async () => {
+  const { STYLES } = require('../src/genres');
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  const movies = await tmdb.recommendSource([], { count: 3, required: ['Superhero'] });
+  const searches = calls.filter((c) => c.url.pathname === '/3/discover/movie');
+  assert.ok(searches.every((c) => c.url.searchParams.get('with_keywords') === STYLES.Superhero.keywords.join('|')));
+  assert.ok(searches.every((c) => !c.url.searchParams.has('with_genres')), 'any genre');
+  assert.strictEqual(movies.length, 3);
+
+  calls.length = 0;
+  await tmdb.recommendSource([], { count: 3, required: ['Romcom'] });
+  const romcom = calls.filter((c) => c.url.pathname === '/3/discover/movie');
+  assert.ok(romcom.some((c) => c.url.searchParams.get('with_genres') === '10749,35'), 'romance AND comedy');
+  assert.ok(romcom.every((c) => !c.url.searchParams.has('with_keywords')));
+});
