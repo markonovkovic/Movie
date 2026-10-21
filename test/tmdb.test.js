@@ -130,7 +130,8 @@ test('length filters every search by run-time, and picks get their run-time', as
   assert.ok(searches.length > 0);
   assert.ok(searches.every((c) => c.url.searchParams.get('with_runtime.lte') === '90' && c.url.searchParams.get('with_runtime.gte') === '60'));
   const details = calls.filter((c) => /^\/3\/movie\/\d+$/.test(c.url.pathname));
-  assert.strictEqual(details.length, movies.length, 'one details lookup per pick');
+  assert.ok(details.length >= movies.length && details.length <= movies.length * 3, 'one details lookup per candidate');
+  assert.strictEqual(movies.length, 2, 'still 2 picks when none has a fitting real length');
   assert.ok(movies.every((m) => m.runtime === 139));
 
   calls.length = 0;
@@ -220,4 +221,32 @@ test('recommendations only search films from 2015 on; recent searches keep their
   assert.ok(searches.includes('2015-01-01'));
   assert.ok(searches.includes('2025-10-20'), 'the newest pick still looks at the last year');
   assert.ok(searches.every((d) => d >= '2015-01-01'));
+});
+
+test('recommendSource with no genre and no emotion searches every genre', async () => {
+  const calls = [];
+  const tmdb = createTmdbClient('k', { fetchImpl: fakeFetch(calls) });
+  const movies = await tmdb.recommendSource([], { count: 3, length: 'short' });
+  const searches = calls.filter((c) => c.url.pathname === '/3/discover/movie');
+  assert.ok(searches.length > 0);
+  assert.ok(searches.every((c) => !c.url.searchParams.has('with_genres') && c.url.searchParams.get('with_runtime.lte') === '90'));
+  assert.strictEqual(movies.length, 3);
+});
+
+test('with a length, picks whose real run-time does not fit are dropped', async () => {
+  // Films' real lengths (from their details): only Fight Club and LOTR are 2h+.
+  const RUNTIMES = { 550: 139, 13: 110, 27205: 100, 120: 178 };
+  const fetchImpl = async (url) => {
+    const { pathname } = new URL(url);
+    const id = Number(pathname.split('/').pop());
+    const body = /^\/3\/movie\/\d+$/.test(pathname)
+      ? { ...SAMPLE.find((m) => m.id === id), runtime: RUNTIMES[id] }
+      : { page: 1, results: SAMPLE, total_results: 4, total_pages: 1 };
+    return { ok: true, status: 200, json: async () => body };
+  };
+  const tmdb = createTmdbClient('k', { fetchImpl });
+  for (let i = 0; i < 5; i++) {
+    const movies = await tmdb.recommendSource([], { count: 2, length: 'long' });
+    assert.deepStrictEqual(movies.map((m) => m.id).sort(), [120, 550]);
+  }
 });

@@ -77,7 +77,7 @@ async function resolveEmotions(input = {}, { detectMood } = {}, { optional = fal
   const text = input.text ? String(input.text).trim() : '';
   if (!selected.length && !text) {
     if (optional) return { keys: [], detectedFrom: 'none' };
-    throw new RecommendationError('Pick an emotion or type a genre.');
+    throw new RecommendationError('Pick a genre or how much time you have.');
   }
   if (!text) return { keys: selected, detectedFrom: 'selection' };
 
@@ -116,7 +116,8 @@ async function recommend(input = {}, deps = {}) {
   const random = deps.random || Math.random;
 
   const requested = resolveGenres(input);
-  const resolved = await resolveEmotions(input, deps, { optional: requested.genres.length > 0 });
+  // Emotions are optional once a genre or a length is chosen (the website only offers those two).
+  const resolved = await resolveEmotions(input, deps, { optional: requested.genres.length > 0 || Boolean(length) });
   const required = requested.genres;
   const chosen = resolved.keys.map((key) => ({ key, ...EMOTIONS[key] }));
   const genreSets = chosen.map((e) => e[mode]);
@@ -152,7 +153,10 @@ async function recommend(input = {}, deps = {}) {
   const genreLabel = required.length ? joinLabels(required) : '';
   let message;
   if (!chosen.length) {
-    message = `Top ${genreLabel} picks.`;
+    const lengthNote = length ? LENGTH_LABELS[length].toLowerCase() : '';
+    message = genreLabel
+      ? `Top ${genreLabel} picks${lengthNote ? `, ${lengthNote}` : ''}.`
+      : `Top picks of any genre, ${lengthNote}.`;
   } else if (genreLabel) {
     message = mode === 'match'
       ? `${genreLabel} movies that match feeling ${joinLabels(labels)}.`
