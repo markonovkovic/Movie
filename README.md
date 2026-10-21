@@ -1,22 +1,17 @@
 # 🎬 MoviePicker
 
-Tell it how you feel and get **3 movies** to watch right now.
+Pick a genre and/or how much time you have, and get **3 movies** to watch right now.
 
-- **Pick one or more emotions** (up to 3, e.g. Sad + Romantic). Movies that fit all of them rank highest,
-  and each emotion is represented in the 3 picks.
+- **Pick a genre** (one at a time; none by default). Every pick is in it.
+- **How much time do you have?**: ⚡ Under 90 min, 🍿 Under 2 hours or 🎬 Long (2h+). All picks fit the time
+  (with TMDB each pick's real length is checked; the built-in list has no run-times), and every pick shows its length.
+  Either choice works on its own: a length alone gives top picks of any genre.
 - **Recent films only**: recommendations are movies released in 2015 or later (one of the 3 is a release from the
   last year). Older classics are still in **All movies**.
-- **Pick a genre** (optional, one at a time; none by default). The chosen genre is a firm rule: every pick is in
-  it. The emotions then decide which ones fit your mood best, e.g. Happy + Horror favours horror-comedies.
-  A genre on its own works too.
-- **How much time do you have?** (optional): ⚡ Under 90 min, 🍿 Under 2 hours or 🎬 Long (2h+). All picks fit the
-  time (with TMDB; the built-in list has no run-times), and every pick shows its length.
-- **Mood keywords** (with TMDB): genres decide *what kind* of film it is, TMDB's tone and theme keywords decide
-  *how it feels*. Each emotion looks for keywords like *hopeful*, *feel-good*, *friendship* or *underdog* (within its
-  genres) and avoids heavy themes like *tragedy* or *grief* (`src/moods.js`). Falls back to genres when too few match.
+- The API still accepts emotions (`emotions`, `text`) for mood-based picks with TMDB mood keywords
+  (`src/moods.js`); the website no longer shows them.
 - Every recommendation is rated **6.0 or higher**, and **one of the 3 is a recent release** (marked 🆕 Newest):
   with TMDB, a fitting movie released in the last 12 months; with the built-in list, its most recent fitting film.
-- Picks aim to **lift the mood** you chose (e.g. sad → warm comedies). The API can also match it instead (`"mode": "match"`).
 - Tap **🎬 Find movies** and the picks are revealed **one by one**: fanned glass cards while it searches, then each
   movie flips over as a **cinematic card**: the poster fills the card (the wide backdrop on wide screens), with the
   title, a rating ring, genres and buttons over a dark fade, an ambient poster glow behind, and story bars on top
@@ -27,7 +22,7 @@ Tell it how you feel and get **3 movies** to watch right now.
   image, the full description, tagline, length, genres, trailer, Seen it / Favourite and a TMDB link.
 - **▶ Trailer** on every movie plays its official YouTube trailer (via TMDB) in a pop-up.
 - **Background music** (on by default): calm ambient music generated live in the browser (Web Audio API, so no
-  audio files and no licensing). It follows the chosen mood (brighter for Happy, softer for Sad, warmer for Romantic,
+  audio files and no licensing). It follows the chosen genre (brighter for Comedy, softer for Drama, warmer for Romance,
   ...), adds a soft whoosh when a card flips, fades out while a trailer plays and pauses when the app is in the
   background. It starts as soon as the app opens; where the browser blocks sound until the
   visitor interacts (common on a first visit), the speaker button glows and the first tap anywhere starts it.

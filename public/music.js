@@ -46,6 +46,12 @@
     sad: 'gentle', lonely: 'gentle', tired: 'gentle', stressed: 'gentle', scared: 'gentle',
     loved: 'warm', nostalgic: 'warm',
     curious: 'mysterious', relaxed: 'mysterious',
+    // Genres (the home screen's choice)
+    Comedy: 'bright', Animation: 'bright', Family: 'bright', Adventure: 'bright', Action: 'bright', Music: 'bright',
+    Fantasy: 'bright', Western: 'bright', Sport: 'bright',
+    Drama: 'gentle', History: 'gentle', War: 'gentle', Documentary: 'gentle', Biography: 'gentle',
+    Romance: 'warm',
+    Horror: 'mysterious', Thriller: 'mysterious', Mystery: 'mysterious', Crime: 'mysterious', 'Sci-Fi': 'mysterious',
   };
 
   let ctx = null;
@@ -231,7 +237,7 @@
       if (enabled) start(); else stop();
       notify();
     },
-    // Switches style for the chosen emotions (the first one leads); from the next chord on.
+    // Switches style for the chosen genre or emotions (the first one leads); from the next chord on.
     setMood(keys = []) {
       style = STYLES[MOOD_STYLE[keys[0]]] || STYLES.calm;
     },

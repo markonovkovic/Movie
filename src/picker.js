@@ -43,9 +43,10 @@ function score(movies, sets, random, required = new Set()) {
       const weight = fitCount * 3 + fitScore + requiredScore * 2 + moodFits.length * 5 + m.rating / 2 + random() * 4;
       // For the newest pick: fitting more emotions first, then mood-keyword matches.
       const rank = fitCount * 2 + (moodFits.length ? 1 : 0);
-      return { movie: m, fits, fitCount, rank, weight, primary: m.genres.find((g) => wanted.has(g)) };
+      return { movie: m, fits, fitCount, rank, weight, primary: wanted.size ? m.genres.find((g) => wanted.has(g)) : m.genres[0] };
     })
-    .filter((c) => c.fitCount > 0 || required.size > 0)
+    // Nothing chosen to fit (no emotions, no genres, e.g. only a length): every movie counts.
+    .filter((c) => c.fitCount > 0 || required.size > 0 || !sets.length)
     .sort((a, b) => b.weight - a.weight);
 }
 
@@ -111,7 +112,7 @@ function pickMovies(catalogue, genreSets, {
   const top = candidates.slice(0, Math.max(count * 4, 12));
   const pool = [...new Set(top.map((c) => c.rank))].sort((a, b) => b - a)
     .flatMap((rank) => shuffle(top.filter((c) => c.rank === rank), random));
-  const usedPrimary = new Set(picks.map((m) => m.genres.find((g) => sets.some((s) => s.has(g)))));
+  const usedPrimary = new Set(picks.map((m) => (sets.length ? m.genres.find((g) => sets.some((s) => s.has(g))) : m.genres[0])));
   for (const c of pool) {
     if (picks.length === count) break;
     if (!taken(c) && !usedPrimary.has(c.primary)) {

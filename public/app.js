@@ -136,12 +136,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 
-const MAX_EMOTIONS = 3;
 const state = {
-  selected: [],   // selected emotion keys, in the order they were picked
   genres: [],     // the selected genre (at most one); empty means any genre
   length: null,   // 'short' | 'medium' | 'long'; null means any length
-  shown: [],      // ids already recommended for this mood, for "show me 3 others"
+  shown: [],      // ids already recommended for these choices, for "show me 3 others"
 };
 
 // Every movie rendered on the page, so card buttons can find their movie.
@@ -348,31 +346,9 @@ function setStatus(msg, isError = false) {
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wait = (ms) => new Promise((ok) => setTimeout(ok, reduceMotion ? 0 : ms));
 
-async function loadEmotions() {
-  const { emotions } = await api('/api/emotions');
-  $('#emotion-chips').innerHTML = emotions.map((e, i) =>
-    `<button class="chip" data-emotion="${e.key}" type="button" aria-pressed="false" style="--i:${i}"><span class="emoji">${e.emoji}</span>${escapeHtml(e.label)}</button>`).join('');
-  renderChips();
-}
-
-function renderChips(warning = '') {
-  window.Music?.setMood(state.selected); // the music follows the chosen mood
-  document.querySelectorAll('#emotion-chips .chip').forEach((c) => {
-    const on = state.selected.includes(c.dataset.emotion);
-    c.classList.toggle('selected', on);
-    c.setAttribute('aria-pressed', String(on));
-  });
-  const n = state.selected.length;
-  $('#chip-hint').classList.toggle('warn', Boolean(warning));
-  $('#chip-hint').textContent = warning || (n
-    ? `${n} of ${MAX_EMOTIONS} selected${n < MAX_EMOTIONS ? '. Tap another to mix moods.' : '.'}`
-    : `Tap up to ${MAX_EMOTIONS} emotions to mix them.`);
-  updateFindButton();
-}
-
 // "Find movies" only appears once there's something to search for.
 function updateFindButton() {
-  $('#find').hidden = !state.selected.length && !state.genres.length;
+  $('#find').hidden = !state.genres.length && !state.length;
   $('#find').disabled = false;
 }
 
@@ -388,21 +364,6 @@ function showStep(step) {
   window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
 }
 
-$('#emotion-chips').addEventListener('click', (e) => {
-  const chip = e.target.closest('.chip');
-  if (!chip) return;
-  const key = chip.dataset.emotion;
-  if (state.selected.includes(key)) {
-    state.selected = state.selected.filter((k) => k !== key);
-  } else if (state.selected.length >= MAX_EMOTIONS) {
-    return renderChips(`You can mix up to ${MAX_EMOTIONS} emotions. Tap a selected one to remove it first.`);
-  } else {
-    state.selected = [...state.selected, key];
-  }
-  setStatus('');
-  renderChips();
-});
-
 /* Genre options: none selected by default, at most one at a time. */
 async function loadGenreChips() {
   const { genres } = await api('/api/genres');
@@ -412,6 +373,7 @@ async function loadGenreChips() {
 }
 
 function renderGenreChips() {
+  window.Music?.setMood(state.genres); // the music follows the chosen genre
   document.querySelectorAll('.genre-opt').forEach((c) => {
     const on = state.genres.includes(c.dataset.genre);
     c.classList.toggle('selected', on);
@@ -433,18 +395,20 @@ $('#genre-chips').addEventListener('click', (e) => {
   renderGenreChips();
 });
 
-/* "How much time do you have?": none by default, at most one; doesn't start a search by itself. */
+/* "How much time do you have?": none by default, at most one. Enough on its own (any genre). */
 function renderLengthChips() {
   document.querySelectorAll('.length-opt').forEach((c) => {
     const on = c.dataset.length === state.length;
     c.classList.toggle('selected', on);
     c.setAttribute('aria-pressed', String(on));
   });
+  updateFindButton();
 }
 $('#length-chips').addEventListener('click', (e) => {
   const chip = e.target.closest('.length-opt');
   if (!chip) return;
   state.length = state.length === chip.dataset.length ? null : chip.dataset.length;
+  setStatus('');
   renderLengthChips();
 });
 
@@ -464,8 +428,7 @@ function formatRuntime(minutes) {
 $('#find').addEventListener('click', () => find());
 
 function find() {
-  if (!state.genres.length && !state.selected.length) return;
-  renderChips();
+  if (!state.genres.length && !state.length) return;
   getRecommendations({ fresh: true });
 }
 
@@ -487,9 +450,8 @@ function preload(url, timeout = 2500) {
 async function getRecommendations({ fresh }) {
   const requestId = ++latestRequest;
   if (fresh) state.shown = [];
-  // The server's default "lift" mode is used: movies that help change the chosen mood.
   await configReady;
-  const body = { exclude: state.shown, hide: hiddenIds(), emotions: state.selected };
+  const body = { exclude: state.shown, hide: hiddenIds() };
   if (state.genres.length) body.genres = state.genres;
   if (state.length) body.length = state.length;
 
@@ -499,8 +461,7 @@ async function getRecommendations({ fresh }) {
   showStep('reveal');
   // Until the results arrive, show what was picked.
   $('#reveal-title').textContent = [
-    state.selected.map((k) => chipLabel($(`.chip[data-emotion="${k}"]`))).filter(Boolean).join(' + '),
-    state.genres.map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + '),
+    state.genres.map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + ') || '🎬 Any genre',
     state.length ? chipLabel($(`.length-opt[data-length="${state.length}"]`)) : '',
   ].filter(Boolean).join('  ·  ') || 'Finding your movies…';
   $('#reveal-message').textContent = '';
@@ -528,10 +489,9 @@ async function getRecommendations({ fresh }) {
 
     state.shown.push(...data.movies.map((m) => m.id));
 
-    const moods = data.emotions.map((e) => `${e.emoji} ${e.label}`).join(' + ');
     const genres = (data.requestedGenres || []).map((g) => `${(GENRE_STYLE[g] || ['🎬'])[0]} ${g}`).join(' + ');
     const length = data.length ? chipLabel($(`.length-opt[data-length="${data.length.key}"]`)) : '';
-    $('#reveal-title').textContent = [moods, genres, length].filter(Boolean).join('  ·  ');
+    $('#reveal-title').textContent = [genres || '🎬 Any genre', length].filter(Boolean).join('  ·  ');
     $('#reveal-message').textContent = data.message;
     hideLoading();
     startReveal(data.movies);
@@ -550,7 +510,7 @@ async function getRecommendations({ fresh }) {
 
 /* ---------- Loading: fanned glass cards and steps of what's happening ---------- */
 
-const LOADING_STEPS = ['Reading your mood…', 'Searching 5,000+ films…', 'Matching the vibe…', 'Picking your top 3…'];
+const LOADING_STEPS = ['Searching recent films…', 'Checking ratings…', 'Matching your picks…', 'Picking your top 3…'];
 let loadingTimer;
 function showLoading() {
   let step = 0;
@@ -788,14 +748,12 @@ function backToPick() {
 }
 $('#change-mood').addEventListener('click', backToPick);
 
-// Back to the first screen with nothing selected, to choose a new mood and genre.
+// Back to the first screen with nothing selected, to choose a new genre and length.
 function startOver() {
-  state.selected = [];
   state.genres = [];
   state.length = null;
   state.shown = [];
   setStatus('');
-  renderChips();
   renderGenreChips();
   renderLengthChips();
   backToPick();
@@ -997,5 +955,5 @@ $('#home-link').addEventListener('click', (e) => {
 });
 
 updateFavCount();
-loadEmotions().catch((err) => setStatus(err.message, true));
+
 loadGenreChips().catch(() => { $('#genre-chips').hidden = true; });

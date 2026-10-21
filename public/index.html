@@ -49,7 +49,7 @@
   <header class="top">
     <a id="home-link" class="brand" href="/" aria-label="MoviePicker home"><span class="logo" aria-hidden="true">🎬</span><span>Movie<span class="brand-accent">Picker</span></span></a>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-view="mood" role="tab" aria-selected="true"><span class="long">What should I watch?</span><span class="short">🎭 Mood</span></button>
+      <button class="tab active" data-view="mood" role="tab" aria-selected="true"><span class="long">What should I watch?</span><span class="short">🍿 Pick</span></button>
       <button class="tab" data-view="browse" role="tab" aria-selected="false"><span class="long">All movies</span><span class="short">🎬 All</span></button>
       <button id="fav-tab" class="tab tab-fav" data-view="favourites" role="tab" aria-selected="false" aria-label="Favourites">
         <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
@@ -81,23 +81,13 @@
         </div>
         <div class="hero">
           <span class="eyebrow">🍿 Movie night, sorted</span>
-          <h1><span class="w" style="--i:0">How</span> <span class="w" style="--i:1">are</span> <span class="w" style="--i:2">you</span> <span class="w" style="--i:3"><span class="gradient-text">feeling</span></span> <span class="w" style="--i:4">right</span> <span class="w" style="--i:5">now?</span></h1>
-          <p class="sub">Choose up to 3 emotions and/or a genre, then tap <strong>Find movies</strong>.</p>
+          <h1><span class="w" style="--i:0">What</span> <span class="w" style="--i:1">should</span> <span class="w" style="--i:2">you</span> <span class="w" style="--i:3"><span class="gradient-text">watch</span></span> <span class="w" style="--i:4">tonight?</span></h1>
+          <p class="sub">Pick a genre, how much time you have, or both, then tap <strong>Find movies</strong>.</p>
         </div>
 
         <section class="panel">
           <div class="panel-head">
             <span class="step-num" aria-hidden="true">1</span>
-            <h2 id="emotion-label" class="panel-title">How do you feel?</h2>
-            <span class="panel-note">up to 3</span>
-          </div>
-          <div id="emotion-chips" class="chips" role="group" aria-labelledby="emotion-label" aria-describedby="chip-hint"></div>
-          <p id="chip-hint" class="hint"></p>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <span class="step-num" aria-hidden="true">2</span>
             <h2 id="genre-label" class="panel-title">What kind of movie?</h2>
             <span class="panel-note">optional</span>
           </div>
@@ -107,7 +97,7 @@
 
         <section class="panel">
           <div class="panel-head">
-            <span class="step-num" aria-hidden="true">3</span>
+            <span class="step-num" aria-hidden="true">2</span>
             <h2 id="length-label" class="panel-title">How much time do you have?</h2>
             <span class="panel-note">optional</span>
           </div>
@@ -125,7 +115,7 @@
       <!-- Step 2: reveal one by one -->
       <div id="step-reveal" class="step" hidden>
         <div class="reveal-top">
-          <button id="change-mood" class="link-btn" type="button">← Change mood</button>
+          <button id="change-mood" class="link-btn" type="button">← Change picks</button>
           <div>
             <h2 id="reveal-title" class="reveal-title"></h2>
             <p id="reveal-message" class="sub reveal-message"></p>

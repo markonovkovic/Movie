@@ -95,8 +95,11 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
     const toIds = (genres) => [...new Set(genres.map((g) => GENRE_IDS[g]).filter(Boolean))];
     // TMDB has no Sport or Biography genre: an empty result lets the built-in list handle those.
     const ids = required.length ? toIds(required) : toIds(genreSets.flat());
-    if (!ids.length) return [];
-    const any = ids.join('|'); // "|" = any of these genres
+    // No genre and no emotion (e.g. only a length): any genre. Genres TMDB doesn't have
+    // (Sport, Biography) give an empty result, so the built-in list handles those.
+    const anyGenre = !required.length && !genreSets.flat().length;
+    if (!ids.length && !anyGenre) return [];
+    const any = ids.join('|') || undefined; // "|" = any of these genres (undefined: no genre filter)
     const all = ids.join(','); // "," = all of these genres
     const today = now.toISOString().slice(0, 10);
     const yearAgo = new Date(now.getTime() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -173,10 +176,15 @@ function createTmdbClient(apiKey, { fetchImpl = globalThis.fetch, azMaxPages = M
       }
       return [...byId.values()];
     };
-    const picks = pickMovies(combine(moodFound, blended, found), genreSets, {
-      count, exclude, hide, random, required, newestPool: combine(moodRecent, recent),
-    });
-    return withRuntimes(picks);
+    const pickOpts = { exclude, hide, random, required, newestPool: combine(moodRecent, recent) };
+    const pool = combine(moodFound, blended, found);
+    if (!length) return withRuntimes(pickMovies(pool, genreSets, { count, ...pickOpts }));
+    // TMDB's run-time search doesn't always match a film's own page, so extra picks are made,
+    // each film's real length is checked, and the best ones that really fit are kept.
+    const checked = await withRuntimes(pickMovies(pool, genreSets, { count: count * 3, ...pickOpts }));
+    const { 'with_runtime.gte': min = 0, 'with_runtime.lte': max = Infinity } = runtime;
+    const fits = checked.filter((m) => !m.runtime || (m.runtime >= min && m.runtime <= max));
+    return (fits.length >= count ? fits : [...fits, ...checked.filter((m) => !fits.includes(m))]).slice(0, count);
   }
 
   // Adds each pick's length (one small details request per movie; skipped if it fails).

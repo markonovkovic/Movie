@@ -41,7 +41,7 @@ test('starts over when everything has been excluded', () => {
 
 test('rejects unknown emotions and empty input', async () => {
   await assert.rejects(recommend({ emotion: 'hangry' }), /Unknown emotion/);
-  await assert.rejects(recommend({}), /Pick an emotion/);
+  await assert.rejects(recommend({}), /Pick a genre or how much time/);
   await assert.rejects(recommend({ text: 'qwerty' }), (err) => err.status === 422);
 });
 
@@ -182,7 +182,7 @@ test('a genre alone is enough; an unknown genre is a clear error', async () => {
 
   await assert.rejects(recommend({ emotions: ['happy'], genre: 'qwerty' }), (err) => err.status === 422 && /know that genre/.test(err.message));
   await assert.rejects(recommend({ genres: ['Nope'] }), /Unknown genre "Nope"/);
-  await assert.rejects(recommend({}), /Pick an emotion or type a genre/);
+  await assert.rejects(recommend({}), /Pick a genre or how much time/);
   const listed = await recommend({ genres: 'comedy,HORROR' });
   assert.deepStrictEqual(listed.requestedGenres, ['Comedy', 'Horror']);
 });
@@ -227,4 +227,13 @@ test('picks are from 2015 on when minYear is set; the built-in list only falls b
   const res = await recommend({ emotions: ['happy'] });
   assert.strictEqual(res.movies.length, 3);
   assert.ok(res.movies.every((m) => m.year >= 2015), res.movies.map((m) => `${m.title} ${m.year}`).join(', '));
+});
+
+test('a length alone is enough: any genre', async () => {
+  const res = await recommend({ length: 'short' });
+  assert.strictEqual(res.movies.length, 3);
+  assert.deepStrictEqual(res.emotions, []);
+  assert.match(res.message, /Top picks of any genre, under 90 min\./);
+  const genreAndLength = await recommend({ genres: ['Comedy'], length: 'long' });
+  assert.match(genreAndLength.message, /Top Comedy picks, long \(2h\+\)\./);
 });
